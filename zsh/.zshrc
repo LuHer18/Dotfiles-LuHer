@@ -14,6 +14,10 @@ compinit
 
 bindkey -e
 
+if command -v fnm >/dev/null 2>&1; then
+  eval "$(fnm env --use-on-cd --shell zsh)"
+fi
+
 alias ll='ls -lah'
 alias la='ls -A'
 alias gs='git status --short --branch'
