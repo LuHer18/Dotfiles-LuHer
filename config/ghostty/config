@@ -3,6 +3,8 @@
 theme = dark:catppuccin-mocha,light:catppuccin-latte
 font-family = JetBrainsMono Nerd Font
 font-size = 14
+background-opacity = 0.88
+background-blur = true
 cursor-style = block
 shell-integration = zsh
 copy-on-select = true
