@@ -1,0 +1,12 @@
+# Conservative Ghostty setup for daily terminal work.
+
+theme = dark:catppuccin-mocha,light:catppuccin-latte
+font-family = JetBrainsMono Nerd Font
+font-size = 14
+cursor-style = block
+shell-integration = zsh
+copy-on-select = true
+window-padding-x = 8
+window-padding-y = 8
+confirm-close-surface = false
+mouse-hide-while-typing = true
