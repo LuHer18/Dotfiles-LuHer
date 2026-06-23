@@ -1,6 +1,6 @@
 # Conservative Ghostty setup for daily terminal work.
 
-theme = dark:catppuccin-mocha,light:catppuccin-latte
+theme = dark:Catppuccin Mocha,light:Catppuccin Latte
 font-family = JetBrainsMono Nerd Font
 font-size = 14
 background-opacity = 0.88
