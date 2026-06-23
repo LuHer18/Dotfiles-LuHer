@@ -18,6 +18,10 @@ if command -v fnm >/dev/null 2>&1; then
   eval "$(fnm env --use-on-cd --shell zsh)"
 fi
 
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+fi
+
 alias ll='ls -lah'
 alias la='ls -A'
 alias gs='git status --short --branch'
@@ -25,6 +29,10 @@ alias icat='kitten icat'
 
 if command -v atuin >/dev/null 2>&1; then
   eval "$(atuin init zsh)"
+fi
+
+if [[ -r /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+  source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 fi
 
 if command -v starship >/dev/null 2>&1; then
