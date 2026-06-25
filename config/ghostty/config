@@ -10,7 +10,8 @@ shell-integration = zsh
 copy-on-select = true
 window-padding-x = 8
 window-padding-y = 8
-macos-titlebar-style = tabs
+macos-titlebar-style = native
+macos-titlebar-proxy-icon = hidden
 confirm-close-surface = false
 mouse-hide-while-typing = true
 
