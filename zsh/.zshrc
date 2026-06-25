@@ -34,6 +34,7 @@ fi
 
 alias gs='git status --short --branch'
 alias icat='kitten icat'
+alias avatar='cat ~/Dotfiles-LuHer/assets/avatar.ansi'
 
 if command -v atuin >/dev/null 2>&1; then
   eval "$(atuin init zsh)"
