@@ -10,6 +10,14 @@ default-root-container-orientation = 'auto'
 enable-normalization-flatten-containers = true
 enable-normalization-opposite-orientation-for-nested-containers = true
 
+[gaps]
+inner.horizontal = 8
+inner.vertical = 8
+outer.left = 8
+outer.bottom = 8
+outer.top = 8
+outer.right = 8
+
 [mode.main.binding]
 # Workspace navigation. ctrl-alt is the Aerospace layer to avoid app/system shortcut clashes.
 ctrl-alt-1 = 'workspace 1'

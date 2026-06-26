@@ -65,6 +65,8 @@ brew install --cask nikitabobko/tap/aerospace
 
 This setup starts with safe manual workspace control. App automation should be added later, one app at a time, after Aerospace is stable.
 
+Tiled windows use 8px inner and outer gaps for a small visual separation between applications.
+
 | Workspace | Purpose | Layout |
 |---|---|---|
 | 1 | Normal/shared use | Floating |
