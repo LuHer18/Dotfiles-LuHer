@@ -1,0 +1,82 @@
+# LuHer Aerospace configuration
+# Safe minimal setup: shortcuts first, app automation later.
+
+start-at-login = true
+accordion-padding = 30
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+
+# Keep normalization predictable while learning the workflow.
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+
+[mode.main.binding]
+# Workspace navigation. ctrl-alt is the Aerospace layer to avoid app/system shortcut clashes.
+ctrl-alt-1 = 'workspace 1'
+ctrl-alt-2 = 'workspace 2'
+ctrl-alt-3 = 'workspace 3'
+ctrl-alt-4 = 'workspace 4'
+ctrl-alt-5 = 'workspace 5'
+ctrl-alt-6 = 'workspace 6'
+
+# Move focused window to a workspace.
+ctrl-alt-shift-1 = 'move-node-to-workspace 1'
+ctrl-alt-shift-2 = 'move-node-to-workspace 2'
+ctrl-alt-shift-3 = 'move-node-to-workspace 3'
+ctrl-alt-shift-4 = 'move-node-to-workspace 4'
+ctrl-alt-shift-5 = 'move-node-to-workspace 5'
+ctrl-alt-shift-6 = 'move-node-to-workspace 6'
+
+# Focus between tiled windows.
+ctrl-alt-h = 'focus left'
+ctrl-alt-j = 'focus down'
+ctrl-alt-k = 'focus up'
+ctrl-alt-l = 'focus right'
+
+# Move tiled windows.
+ctrl-alt-shift-h = 'move left'
+ctrl-alt-shift-j = 'move down'
+ctrl-alt-shift-k = 'move up'
+ctrl-alt-shift-l = 'move right'
+
+# Layout controls.
+ctrl-alt-enter = 'fullscreen'
+ctrl-alt-space = 'layout floating tiling'
+ctrl-alt-shift-enter = 'layout tiling'
+ctrl-alt-minus = 'resize smart -50'
+ctrl-alt-equal = 'resize smart +50'
+ctrl-alt-r = 'balance-sizes'
+
+# Keep workspace 1 as normal macOS-like shared space.
+[[on-window-detected]]
+if.workspace = '1'
+check-further-callbacks = true
+run = 'layout floating'
+
+# Main development terminal.
+[[on-window-detected]]
+if.app-id = 'com.mitchellh.ghostty'
+run = ['move-node-to-workspace 2', 'layout tiling']
+
+# Code editors.
+[[on-window-detected]]
+if.app-id = 'com.microsoft.VSCode'
+run = ['move-node-to-workspace 3', 'layout tiling']
+
+[[on-window-detected]]
+if.app-id = 'com.jetbrains.intellij'
+run = ['move-node-to-workspace 3', 'layout tiling']
+
+# API testing.
+[[on-window-detected]]
+if.app-id = 'com.postmanlabs.mac'
+run = ['move-node-to-workspace 4', 'layout tiling']
+
+# Data and infrastructure.
+[[on-window-detected]]
+if.app-id = 'com.docker.docker'
+run = ['move-node-to-workspace 5', 'layout tiling']
+
+[[on-window-detected]]
+if.app-id = 'org.jkiss.dbeaver.core.product'
+run = ['move-node-to-workspace 5', 'layout tiling']

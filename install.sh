@@ -10,6 +10,7 @@ CREATED_BACKUP_DIR=0
 
 LINKS=(
   "${REPO_DIR}/config/ghostty/config:${HOME}/.config/ghostty/config"
+  "${REPO_DIR}/config/aerospace/aerospace.toml:${HOME}/.config/aerospace/aerospace.toml"
   "${REPO_DIR}/config/starship.toml:${HOME}/.config/starship.toml"
   "${REPO_DIR}/tmux/.tmux.conf:${HOME}/.tmux.conf"
   "${REPO_DIR}/zsh/.zshrc:${HOME}/.zshrc"
