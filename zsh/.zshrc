@@ -1,6 +1,9 @@
 export EDITOR="nvim"
 export VISUAL="nvim"
 
+DOTFILES_ZSH_DIR="${${(%):-%N}:A:h}"
+DOTFILES_REPO_DIR="${DOTFILES_ZSH_DIR:h}"
+
 setopt AUTO_CD
 setopt HIST_IGNORE_DUPS
 setopt SHARE_HISTORY
@@ -33,8 +36,11 @@ else
 fi
 
 alias gs='git status --short --branch'
-alias icat='kitten icat'
-alias avatar='cat ~/Dotfiles-LuHer/assets/avatar.ansi'
+alias avatar="cat ${DOTFILES_REPO_DIR}/assets/avatar.ansi"
+
+if command -v kitten >/dev/null 2>&1; then
+  alias icat='kitten icat'
+fi
 
 if command -v atuin >/dev/null 2>&1; then
   eval "$(atuin init zsh)"
