@@ -12,6 +12,7 @@ DRY_RUN=0
 LINK_SOURCES=(
   "${REPO_DIR}/config/ghostty/config"
   "${REPO_DIR}/config/aerospace/aerospace.toml"
+  "${REPO_DIR}/config/herdr/config.toml"
   "${REPO_DIR}/config/starship.toml"
   "${REPO_DIR}/tmux/scripts"
   "${REPO_DIR}/tmux/.tmux.conf"
@@ -21,6 +22,7 @@ LINK_SOURCES=(
 LINK_TARGETS=(
   "${HOME}/.config/ghostty/config"
   "${HOME}/.config/aerospace/aerospace.toml"
+  "${HOME}/.config/herdr/config.toml"
   "${HOME}/.config/starship.toml"
   "${HOME}/.config/tmux/scripts"
   "${HOME}/.tmux.conf"

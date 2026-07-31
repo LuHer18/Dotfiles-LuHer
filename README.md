@@ -1,6 +1,6 @@
 # Dotfiles LuHer
 
-Practical dotfiles for a lightweight Ghostty + tmux + zsh + Starship + Aerospace workflow.
+Practical dotfiles for a lightweight Ghostty + tmux + zsh + Starship + Aerospace workflow, with Herdr available as an opt-in agent-focused alternative to tmux.
 
 ## What is included
 
@@ -8,6 +8,7 @@ Practical dotfiles for a lightweight Ghostty + tmux + zsh + Starship + Aerospace
 - Aerospace config
 - Starship prompt config
 - tmux config
+- Herdr config (optional tmux alternative)
 - zsh config
 - install script with backups, dry-run support, and safe symlink replacement
 
@@ -57,6 +58,7 @@ Repeat the same pattern for any other managed target: remove the managed symlink
 |---|---|
 | `config/ghostty/config` | `~/.config/ghostty/config` |
 | `config/aerospace/aerospace.toml` | `~/.config/aerospace/aerospace.toml` |
+| `config/herdr/config.toml` | `~/.config/herdr/config.toml` |
 | `config/starship.toml` | `~/.config/starship.toml` |
 | `tmux/scripts/` | `~/.config/tmux/scripts/` |
 | `tmux/.tmux.conf` | `~/.tmux.conf` |
@@ -69,6 +71,7 @@ Repeat the same pattern for any other managed target: remove the managed symlink
 - Ghostty
 - Aerospace
 - tmux
+- Herdr (optional)
 - zsh
 - Starship
 - JetBrainsMono Nerd Font or another Nerd Font
@@ -91,6 +94,12 @@ Install Aerospace with Homebrew:
 
 ```bash
 brew install --cask nikitabobko/tap/aerospace
+```
+
+Install Herdr with Homebrew:
+
+```bash
+brew install herdr
 ```
 
 ## Aerospace workspace layout
@@ -138,6 +147,24 @@ If a window gets stuck floating, focus it and press `ctrl-alt-shift-enter` to fo
 - Status scripts show window name, Git branch, CPU, RAM, and time
 
 The tmux status helpers are installed under `~/.config/tmux/scripts`, so the status line does not depend on a hard-coded repository location. The bundled `pbcopy` clipboard integration is macOS-specific.
+
+## Herdr behavior (optional)
+
+Herdr is an opt-in alternative for agent-focused sessions; tmux remains installed and unchanged. Start one multiplexer per terminal: **do not nest tmux and Herdr**. Nested multiplexers conflict on prefix handling, and Herdr cannot detect agents running behind a tmux process inside a Herdr pane.
+
+The managed config uses the built-in Kanagawa theme with the current tmux status colors, starts `/bin/zsh` as a macOS login shell, and inherits the active pane directory for new panes and tabs.
+
+| Key | Action |
+|---|---|
+| `Ctrl-a c` | Create tab |
+| `Ctrl-a n` / `Ctrl-a p` | Next / previous tab |
+| `Ctrl-a h/j/k/l` | Focus left / down / up / right pane |
+| `Ctrl-a v` | Split side by side |
+| `Ctrl-a d` | Split stacked |
+| `Ctrl-a r` | Reload Herdr config |
+| `Ctrl-a Shift-r` | Enter resize mode |
+
+Herdr's OpenCode integration is installed separately with `herdr integration install opencode`. It adds only `~/.config/opencode/plugins/herdr-agent-state.js`; it reports OpenCode lifecycle state and session identity for OpenCode processes running inside Herdr and does not modify `~/.config/opencode/opencode.json`.
 
 ## Ghostty behavior
 

@@ -1,0 +1,49 @@
+# Herdr is an opt-in alternative to tmux for agent-focused sessions.
+# Do not launch tmux inside Herdr (or Herdr inside tmux): nested multiplexers
+# conflict on key handling, and Herdr cannot detect agents behind inner tmux.
+onboarding = false
+
+[theme]
+# Kanagawa is built in; the overrides mirror tmux's existing status palette.
+name = "kanagawa"
+
+[theme.custom]
+panel_bg = "#1D1C19"
+surface0 = "#282727"
+accent = "#737c73"
+green = "#737c73"
+yellow = "#c4b28a"
+blue = "#949fb5"
+
+[terminal]
+# macOS panes use zsh as login shells, including Homebrew's login PATH setup.
+default_shell = "/bin/zsh"
+shell_mode = "login"
+new_cwd = "follow"
+
+[keys]
+prefix = "ctrl+a"
+new_tab = "prefix+c"
+next_tab = "prefix+n"
+previous_tab = "prefix+p"
+focus_pane_left = "prefix+h"
+focus_pane_down = "prefix+j"
+focus_pane_up = "prefix+k"
+focus_pane_right = "prefix+l"
+# Herdr names side-by-side as vertical and stacked as horizontal.
+split_vertical = "prefix+v"
+split_horizontal = "prefix+d"
+# Match tmux's reload muscle memory; move resize mode to avoid a collision.
+reload_config = "prefix+r"
+resize_mode = "prefix+shift+r"
+
+[ui]
+accent = "#737c73"
+
+show_agent_labels_on_pane_borders = true
+[experimental]
+# Keep Herdr's own nesting guard explicit; tmux nesting is avoided by policy.
+allow_nested = false
+
+[ui.toast]
+delivery = "herdr"
