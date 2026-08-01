@@ -59,6 +59,7 @@ Repeat the same pattern for any other managed target: remove the managed symlink
 | `config/ghostty/config` | `~/.config/ghostty/config` |
 | `config/aerospace/aerospace.toml` | `~/.config/aerospace/aerospace.toml` |
 | `config/herdr/config.toml` | `~/.config/herdr/config.toml` |
+| `config/opencode/tui.json` | `~/.config/opencode/tui.json` |
 | `config/starship.toml` | `~/.config/starship.toml` |
 | `tmux/scripts/` | `~/.config/tmux/scripts/` |
 | `tmux/.tmux.conf` | `~/.tmux.conf` |
