@@ -6,6 +6,7 @@ Practical dotfiles for a lightweight Ghostty + tmux + zsh + Starship + Aerospace
 
 - Ghostty config
 - Aerospace config
+- SketchyBar config with SbarLua and Aerospace workspaces
 - Starship prompt config
 - tmux config
 - Herdr config (optional tmux alternative)
@@ -37,6 +38,8 @@ The script will:
 - skip targets that are already linked correctly
 - replace targets with symlinks to this repository
 
+This is the legacy installer. It deploys only the targets explicitly listed in `install.sh`; it does not deploy the SketchyBar mapping declared in `dotfiles.json`.
+
 Backups are stored in:
 
 ```bash
@@ -52,18 +55,21 @@ mv ~/.dotfiles-backups/<timestamp>/.zshrc ~/.zshrc
 
 Repeat the same pattern for any other managed target: remove the managed symlink first, then move the backup into place.
 
-## Managed targets
+## Declared targets
 
-| Repository file | Installed target |
-|---|---|
-| `config/ghostty/config` | `~/.config/ghostty/config` |
-| `config/aerospace/aerospace.toml` | `~/.config/aerospace/aerospace.toml` |
-| `config/herdr/config.toml` | `~/.config/herdr/config.toml` |
-| `config/opencode/tui.json` | `~/.config/opencode/tui.json` |
-| `config/starship.toml` | `~/.config/starship.toml` |
-| `tmux/scripts/` | `~/.config/tmux/scripts/` |
-| `tmux/.tmux.conf` | `~/.tmux.conf` |
-| `zsh/.zshrc` | `~/.zshrc` |
+These mappings are declared in `dotfiles.json`. The legacy installer currently deploys all of them except SketchyBar.
+
+| Repository file | Target | Legacy installer |
+|---|---|---|
+| `config/ghostty/config` | `~/.config/ghostty/config` | Yes |
+| `config/aerospace/aerospace.toml` | `~/.config/aerospace/aerospace.toml` | Yes |
+| `config/sketchybar/` | `~/.config/sketchybar/` | No |
+| `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Yes |
+| `config/opencode/tui.json` | `~/.config/opencode/tui.json` | Yes |
+| `config/starship.toml` | `~/.config/starship.toml` | Yes |
+| `tmux/scripts/` | `~/.config/tmux/scripts/` | Yes |
+| `tmux/.tmux.conf` | `~/.tmux.conf` | Yes |
+| `zsh/.zshrc` | `~/.zshrc` | Yes |
 
 ## Dependencies and optional features
 
@@ -71,11 +77,13 @@ Repeat the same pattern for any other managed target: remove the managed symlink
 
 - Ghostty
 - Aerospace
+- SketchyBar with the SbarLua module
 - tmux
 - Herdr (optional)
 - zsh
 - Starship
 - JetBrainsMono Nerd Font or another Nerd Font
+- `sketchybar-app-font` and its generated application map
 
 ### Optional command-line integrations used by `zsh/.zshrc`
 
@@ -102,6 +110,23 @@ Install Herdr with Homebrew:
 ```bash
 brew install herdr
 ```
+
+### SketchyBar activation
+
+The SketchyBar config requires SketchyBar, SbarLua at `~/.local/share/sketchybar_lua/`, Aerospace, the Homebrew core `media-control` formula, and [`kvndrsslr/sketchybar-app-font`](https://github.com/kvndrsslr/sketchybar-app-font). Install those prerequisites manually from their official documentation; this repository does not install packages or application fonts.
+
+Build `sketchybar-app-font` with its documented `pnpm install` and `pnpm run build` commands. Install the generated assets outside this repository at these stable paths:
+
+```text
+~/Library/Fonts/sketchybar-app-font.ttf
+~/.local/share/sketchybar-app-font/icon_map.sh
+```
+
+Do not run the upstream installer against this active configuration: `~/.config/sketchybar` is a repository symlink, so its default map destination would add generated third-party files to the repository. The small bundled `app_icon.sh` helper reads the external maintained map and returns the font's `:default:` glyph when an application is unknown or the map cannot produce a valid ligature.
+
+The mapping is declared in `dotfiles.json`, but `install.sh` does not deploy it and the safe repository manager is not runnable yet. Do not bypass its backup and safety policy with ad hoc linking commands. Wait for that workflow to become available, or use it once available, before deploying or activating this configuration. AeroSpace must read the updated `aerospace.toml` before workspace-change events are emitted.
+
+The bar uses a transparent canvas with compact, semi-transparent status pills. Its colors follow the bundled Catppuccin Mocha palette selected by `config/ghostty/config`; translucent surfaces add alpha without changing the source RGB values. Workspaces 1–5, the front application, and a capped `media-control` Now Playing label are on the left in that order. The front application shows its `sketchybar-app-font` icon immediately before the unchanged application name, follows the focused AeroSpace workspace, and hides both icon and label when that workspace is empty. The chevron expands or collapses additional workspaces discovered with `aerospace list-workspaces --all`; each revealed workspace remains directly selectable. If a hidden additional workspace becomes focused, the list expands automatically so that focus remains visible. CPU, RAM, root-disk usage, interactive volume, battery, passive Wi-Fi connectivity, and the Spanish date and time are on the right. The Wi-Fi item only reports `Conectado` or `Sin conexión`; it has no click action, does not inspect the SSID, and does not require Screen Recording permission. Left-clicking volume toggles mute without replacing the prior level, while scrolling changes output volume in five-point steps. Now Playing uses one configuration-owned `media-control stream` watcher and hides paused or incomplete metadata. Updates use native events where available and bounded asynchronous polling for metrics that require current system state.
 
 ## Aerospace workspace layout
 
