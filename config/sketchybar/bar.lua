@@ -4,6 +4,7 @@ return function(sbar)
   sbar.bar({
     height = 34,
     color = colors.background,
+    topmost = "window",
     padding_left = 7,
     padding_right = 7,
   })
