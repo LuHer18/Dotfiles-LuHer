@@ -3,7 +3,6 @@
   "mappings": [
     { "id": "ghostty", "kind": "symlink", "source": "config/ghostty/config", "target": ".config/ghostty/config" },
     { "id": "aerospace", "kind": "symlink", "source": "config/aerospace/aerospace.toml", "target": ".config/aerospace/aerospace.toml" },
-    { "id": "sketchybar", "kind": "symlink", "source": "config/sketchybar", "target": ".config/sketchybar" },
     { "id": "herdr", "kind": "symlink", "source": "config/herdr/config.toml", "target": ".config/herdr/config.toml" },
     { "id": "opencode", "kind": "symlink", "source": "config/opencode/tui.json", "target": ".config/opencode/tui.json" },
     { "id": "starship", "kind": "symlink", "source": "config/starship.toml", "target": ".config/starship.toml" },
