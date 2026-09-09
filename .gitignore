@@ -4,3 +4,11 @@
 
 # Local backup output from install script
 .dotfiles-backups/
+
+# Pi snapshot: allowlist only the reviewed portable files
+config/pi/*
+!config/pi/settings.json
+!config/pi/README.md
+!config/pi/themes/
+config/pi/themes/*
+!config/pi/themes/catppuccin-mocha.json
