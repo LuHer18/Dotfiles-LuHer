@@ -68,13 +68,66 @@ parse_args() {
   done
 }
 
+read_arch() {
+  printf '%s\n' "${DOTFILES_ARCH:-$(uname -m)}"
+}
+
 interactive_selection() {
-  local choices='ghostty,tmux,herdr,starship,zsh,opencode,pi'
-  [[ "$OS_NAME" == Darwin ]] && choices+=',aerospace'
-  printf 'Available config IDs: %s\n' "$choices"
-  printf 'Select comma-separated IDs (or press Enter to cancel): '
-  IFS= read -r SELECT_LIST || SELECT_LIST=
+  SELECT_LIST=$(PYTHONDONTWRITEBYTECODE=1 python3 -B "$ROOT/scripts/interactive_menu.py" --os "$OS_NAME" --arch "$(read_arch)")
   [[ -n "$SELECT_LIST" ]] || { printf 'Cancelled; no changes made.\n'; exit 0; }
+}
+
+validate_selection() {
+  local id seen=
+  [[ "$SELECT_LIST" != ,* && "$SELECT_LIST" != *, && "$SELECT_LIST" != *,,* ]] || fail 'Invalid empty selection'
+  IFS=, read -r -a SELECTION_IDS <<<"$SELECT_LIST"
+  for id in "${SELECTION_IDS[@]}"; do
+    case "$id" in ghostty|tmux|herdr|starship|zsh|opencode|pi|aerospace) ;; *) fail "Unknown selection: $id" ;; esac
+    [[ "$OS_NAME" == Darwin || "$id" != aerospace ]] || fail 'Aerospace is macOS-only'
+    case ",$seen," in *,"$id",*) fail 'Duplicate selection' ;; esac
+    seen+="${seen:+,}$id"
+  done
+}
+
+plan_selection() {
+  local id
+  APP_SELECT=
+  CONFIG_SELECT=
+  PI_SELECTED=0
+  for id in "${SELECTION_IDS[@]}"; do
+    if [[ "$id" == pi ]]; then
+      PI_SELECTED=1
+      continue
+    fi
+    CONFIG_SELECT+="${CONFIG_SELECT:+,}$id"
+    (( CONFIGS_ONLY == 1 )) || APP_SELECT+="${APP_SELECT:+,}$id"
+  done
+  (( PI_MERGE == 0 || PI_SELECTED == 1 )) || fail '--pi-merge requires pi in --select'
+}
+
+run_pi_setup() {
+  local -a args=()
+  [[ "$1" == dry-run ]] && args+=(--dry-run)
+  (( PI_MERGE == 1 )) && args+=(--merge)
+  if ((${#args[@]})); then
+    PYTHONDONTWRITEBYTECODE=1 DOTFILES_TEST_OS="$OS_NAME" PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" bash "$ROOT/scripts/setup-pi.sh" "${args[@]}"
+  else
+    PYTHONDONTWRITEBYTECODE=1 DOTFILES_TEST_OS="$OS_NAME" PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" bash "$ROOT/scripts/setup-pi.sh"
+  fi
+}
+
+preview() {
+  printf '[dotfiles] Preview: applications=%s, configurations=%s\n' "${APP_SELECT:-none}" "${CONFIG_SELECT:-none}"
+  if (( PI_SELECTED == 1 )); then
+    pi_preflight
+    run_pi_setup dry-run || fail 'Pi target validation failed; no applications were installed'
+  fi
+  if [[ -n "$APP_SELECT" ]]; then
+    DOTFILES_TEST_OS="$OS_NAME" DOTFILES_OS_RELEASE="${DOTFILES_OS_RELEASE:-}" DOTFILES_APP_SELECT="${APP_SELECT//,/ }" DOTFILES_DRY_RUN=1 bash "$ROOT/scripts/install-apps.sh" --yes || fail 'Application preview failed; no changes were made'
+  fi
+  if [[ -n "$CONFIG_SELECT" ]]; then
+    DOTFILES_TEST_OS="$OS_NAME" bash "$ROOT/install.sh" --dry-run --select "$CONFIG_SELECT" || fail 'Configuration preview failed; no changes were made'
+  fi
 }
 
 pi_preflight() {
@@ -120,57 +173,24 @@ main() {
     [[ -t 0 ]] || fail 'Interactive selection requires a TTY; use --select LIST'
     interactive_selection
   fi
-    local app_select=$SELECT_LIST
-    local pi_selected=0
-    case ",$SELECT_LIST," in *,pi,*) pi_selected=1;; esac
-    if (( PI_MERGE == 1 && pi_selected == 0 )); then fail '--pi-merge requires pi in --select'; fi
-    if (( CONFIGS_ONLY == 1 )); then
-      app_select=
-    else
-      app_select=${app_select//,pi/}
-      app_select=${app_select%,}
-    fi
-    printf '[dotfiles] Preview: applications=%s, configurations=%s\n' "${app_select:-none}" "$SELECT_LIST"
-    if [[ "$OS_NAME" == Linux && ",$app_select," == *,herdr,* ]]; then
-      printf '[dotfiles] Remote script: https://herdr.dev/install.sh -> %s/.local/bin (network code runs as your user)\n' "$HOME"
-    fi
-    if [[ "$OS_NAME" == Linux && ",$app_select," == *,starship,* ]]; then
-      printf '[dotfiles] Remote script: https://starship.rs/install.sh -> %s/.local/bin (network code runs as your user)\n' "$HOME"
-    fi
-    confirm
-        if (( pi_selected == 1 )); then
-          pi_preflight
-          if (( PI_MERGE == 1 )); then
-            PYTHONDONTWRITEBYTECODE=1 DOTFILES_TEST_OS="$OS_NAME" PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" bash "$ROOT/scripts/setup-pi.sh" --dry-run --merge >/dev/null || fail 'Pi target validation failed; no applications were installed'
-          else
-            PYTHONDONTWRITEBYTECODE=1 DOTFILES_TEST_OS="$OS_NAME" PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" bash "$ROOT/scripts/setup-pi.sh" --dry-run >/dev/null || fail 'Pi target validation failed; no applications were installed'
-          fi
-        fi
-    if (( CONFIGS_ONLY == 0 )) && [[ -n "$app_select" ]]; then
-      install_args=(--yes)
-      (( ALLOW_REMOTE_INSTALLERS == 1 )) && install_args+=(--allow-remote-installers)
-      DOTFILES_TEST_OS="$OS_NAME" DOTFILES_OS_RELEASE="${DOTFILES_OS_RELEASE:-}" DOTFILES_APP_SELECT="${app_select//,/ }" DOTFILES_DRY_RUN="$DRY_RUN" bash "$ROOT/scripts/install-apps.sh" "${install_args[@]}" || fail 'Application installation failed; no configuration links were changed'
-    fi
-        if (( pi_selected == 1 )); then
-          if (( DRY_RUN == 1 )); then
-            if (( PI_MERGE == 1 )); then
-PYTHONDONTWRITEBYTECODE=1 bash "$ROOT/scripts/setup-pi.sh" --dry-run --merge
-            else
-              PYTHONDONTWRITEBYTECODE=1 bash "$ROOT/scripts/setup-pi.sh" --dry-run
-            fi
-          elif (( PI_MERGE == 1 )); then
-            PYTHONDONTWRITEBYTECODE=1 bash "$ROOT/scripts/setup-pi.sh" --merge
-else
-            PYTHONDONTWRITEBYTECODE=1 bash "$ROOT/scripts/setup-pi.sh"
-          fi
-        fi
-    local config_select=$SELECT_LIST
-    config_select=${config_select//,pi/}
-    config_select=${config_select#pi,}
-    [[ "$config_select" == pi ]] && config_select=
-    local -a install_args=(--select "$config_select")
-    (( DRY_RUN == 1 )) && install_args+=(--dry-run)
-    DOTFILES_TEST_OS="$OS_NAME" exec bash "$ROOT/install.sh" "${install_args[@]}"
+  validate_selection
+  plan_selection
+  preview
+  (( DRY_RUN == 0 )) || exit 0
+  confirm
+
+  if [[ -n "$APP_SELECT" ]]; then
+    local -a install_args=(--yes)
+    (( ALLOW_REMOTE_INSTALLERS == 1 )) && install_args+=(--allow-remote-installers)
+    DOTFILES_TEST_OS="$OS_NAME" DOTFILES_OS_RELEASE="${DOTFILES_OS_RELEASE:-}" DOTFILES_APP_SELECT="${APP_SELECT//,/ }" bash "$ROOT/scripts/install-apps.sh" "${install_args[@]}" || fail 'Application installation failed; no configuration links were changed'
+  fi
+  if (( PI_SELECTED == 1 )); then
+    run_pi_setup apply || fail 'Pi setup failed; configuration links were not changed'
+  fi
+  if [[ -n "$CONFIG_SELECT" ]]; then
+    DOTFILES_TEST_OS="$OS_NAME" exec bash "$ROOT/install.sh" --select "$CONFIG_SELECT"
+  fi
+  printf '[dotfiles] Done; no configuration links selected.\n'
 }
 
 main "$@"

@@ -42,6 +42,7 @@ if command -v bash >/dev/null 2>&1; then
 fi
 
 if command -v python3 >/dev/null 2>&1; then
+  run_check "parse interactive menu" python3 -B -c 'import ast, sys; from pathlib import Path; ast.parse(Path(sys.argv[1]).read_text())' "${REPO_DIR}/scripts/interactive_menu.py"
   run_check "parse dotfiles.json" python3 -m json.tool "${REPO_DIR}/dotfiles.json" >/dev/null
 else
   log "SKIP JSON parse (python3 not available)"
