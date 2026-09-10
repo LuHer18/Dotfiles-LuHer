@@ -33,6 +33,8 @@ done
 if command -v bash >/dev/null 2>&1; then
   run_check "bash -n install.sh" bash -n "${REPO_DIR}/install.sh"
   run_check "bash -n scripts/check.sh" bash -n "${REPO_DIR}/scripts/check.sh"
+  run_check "bash -n scripts/install-apps.sh" bash -n "${REPO_DIR}/scripts/install-apps.sh"
+  run_check "bash -n tests/test_install_apps.sh" bash -n "${REPO_DIR}/tests/test_install_apps.sh"
   run_check "bash -n scripts/setup-pi.sh" bash -n "${REPO_DIR}/scripts/setup-pi.sh"
   run_check "bash -n dotfiles" bash -n "${REPO_DIR}/dotfiles"
   run_check "bash -n tests/test_cli.sh" bash -n "${REPO_DIR}/tests/test_cli.sh"
@@ -75,6 +77,9 @@ fi
 
 if [[ -x "${REPO_DIR}/tests/test_cli.sh" ]]; then
   run_check "CLI tests" bash "${REPO_DIR}/tests/test_cli.sh"
+fi
+if [[ -x "${REPO_DIR}/tests/test_install_apps.sh" ]]; then
+  run_check "application tests" bash "${REPO_DIR}/tests/test_install_apps.sh"
 fi
 
 if [[ "${DOTFILES_SKIP_PORTABILITY_TEST:-0}" != 1 ]] && [[ -x "${REPO_DIR}/tests/test_portability.sh" ]]; then

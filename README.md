@@ -1,19 +1,19 @@
 # Dotfiles LuHer
 
-Configuración para macOS y Linux con zsh, Ghostty, Starship, OpenCode y un multiplexor de terminal. El instalador crea enlaces simbólicos y respalda los destinos existentes; no instala aplicaciones ni paquetes.
+Configuración para macOS y Linux con zsh, Ghostty, Starship, OpenCode y un multiplexor de terminal. `install.sh` es el instalador heredado de enlaces solamente; `./dotfiles setup` puede instalar aplicaciones después de una confirmación explícita.
 
 ## Instalación rápida
 
-La primera entrega de la CLI configura enlaces selectivos; no instala aplicaciones ni paquetes. En macOS y Ubuntu/Debian puede revisar el plan y aplicar solo las superficies elegidas:
+La CLI muestra un plan de aplicaciones y configuraciones antes de aplicar cambios. `--configs-only` conserva el modo de la primera entrega y solo enlaza configuraciones:
 
 ```bash
 ./dotfiles setup --select tmux,starship --dry-run
-./dotfiles setup --select tmux,starship --yes
+./dotfiles setup --select tmux,starship --configs-only --yes
 ```
 
 Sin `--select`, `./dotfiles setup` ofrece un menú interactivo únicamente en una terminal. Sin `--yes`, la confirmación es explícita y por defecto se cancela; `--dry-run` nunca crea archivos ni ejecuta gestores. Aerospace aparece y se acepta solo en macOS. Ghostty en Debian/Ubuntu (incluido antes de 26.04) requiere instalación manual posterior; no se usa ningún instalador comunitario.
 
-Esta entrega no instala Pi ni lo ofrece en el selector. Para la configuración opcional existente, use `./scripts/setup-pi.sh` por separado. La instalación de aplicaciones queda para la segunda entrega.
+La segunda entrega instala aplicaciones solo después de la confirmación explícita. Use `--configs-only` para omitirlas. Para Pi, añada `pi` y elija explícitamente `--pi-merge` cuando exista una configuración previa; sin esa opción se usa el modo nuevo de `scripts/setup-pi.sh`. En Linux, Herdr y Starship usan un Linuxbrew existente; no se instala Homebrew automáticamente. Ghostty requiere Ubuntu >=26.04 para apt; en Debian o Ubuntu anterior se detiene con guía manual. Consulte las fuentes oficiales: [Herdr](https://herdr.dev/docs/install/) y [Starship](https://starship.rs/guide/).
 
 Elija `tmux`, `herdr` o `both`. `both` es el valor predeterminado y enlaza las dos configuraciones; no obliga a usar ambos. Para una sesión normal, tmux es la opción general. [Herdr](https://herdr.dev) es una alternativa parecida a tmux, enfocada en sesiones con agentes de IA. No anide un multiplexor dentro del otro.
 
@@ -52,7 +52,7 @@ Aplicaciones recomendadas o necesarias según lo que vaya a usar:
 - **macOS:** Aerospace es opcional y solo se enlaza en macOS. Instálelo desde su [documentación oficial](https://nikitabobko.github.io/AeroSpace/).
 - **Linux:** el portapapeles de tmux necesita `wl-copy` en Wayland o `xclip`/`xsel` en X11. Sin ellos, tmux sigue funcionando, pero no copiará al portapapeles.
 
-Ghostty y Herdr no se instalan mediante este repositorio. Use sus instrucciones oficiales para su sistema; no se asumen paquetes concretos ni portabilidad completa de todas las herramientas entre distribuciones.
+`install.sh` no instala aplicaciones. `./dotfiles setup` instala solo métodos oficiales predefinidos, con gestores ya existentes y arquitectura compatible; nunca instala Homebrew/pnpm/node automáticamente.
 
 Las integraciones opcionales de zsh (`eza`, `fnm`, `zoxide`, `atuin`, `zsh-autosuggestions` y `zsh-syntax-highlighting`) solo se activan cuando están disponibles. Kitty es opcional para `kitten icat`.
 

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 usage() {
-  printf '%s\n' 'Usage: ./dotfiles setup [--select LIST] [--dry-run] [--yes]'
+  printf '%s\n' 'Usage: ./dotfiles setup [--select LIST] [--dry-run] [--yes] [--configs-only] [--pi-merge]'
 }
 
 fail() {
@@ -58,6 +58,8 @@ parse_args() {
         ;;
       --dry-run) DRY_RUN=1 ;;
       --yes) YES=1 ;;
+      --configs-only) CONFIGS_ONLY=1 ;;
+      --pi-merge) PI_MERGE=1 ;;
       *) usage >&2; fail "Unknown option: $1" ;;
     esac
     shift
@@ -65,12 +67,28 @@ parse_args() {
 }
 
 interactive_selection() {
-  local choices='ghostty,tmux,herdr,starship,zsh,opencode'
+  local choices='ghostty,tmux,herdr,starship,zsh,opencode,pi'
   [[ "$OS_NAME" == Darwin ]] && choices+=',aerospace'
   printf 'Available config IDs: %s\n' "$choices"
   printf 'Select comma-separated IDs (or press Enter to cancel): '
   IFS= read -r SELECT_LIST || SELECT_LIST=
   [[ -n "$SELECT_LIST" ]] || { printf 'Cancelled; no changes made.\n'; exit 0; }
+}
+
+pi_preflight() {
+  local nodev major minor bin
+  command -v node >/dev/null 2>&1 || fail 'Missing prerequisite: node'
+  command -v python3 >/dev/null 2>&1 || fail 'Missing prerequisite: python3'
+  command -v npm >/dev/null 2>&1 || fail 'Missing prerequisite: npm'
+  command -v pnpm >/dev/null 2>&1 || fail 'Missing prerequisite: pnpm'
+  nodev=$(node --version 2>/dev/null || true)
+  [[ "$nodev" =~ ^v([0-9]+)\.([0-9]+)\. ]] || fail 'Node >=22.19.0 is required'
+  major=${BASH_REMATCH[1]}; minor=${BASH_REMATCH[2]}
+  (( major > 22 || (major == 22 && minor >= 19) )) || fail 'Node >=22.19.0 is required'
+  if (( DRY_RUN == 0 )); then
+bin=$(pnpm config get global-bin-dir 2>/dev/null || true)
+[[ "$bin" == /* && -d "$bin" && -x "$bin" && -w "$bin" ]] || fail 'pnpm global-bin-dir must be an absolute usable directory'
+  fi
 }
 
 confirm() {
@@ -88,6 +106,8 @@ confirm() {
 main() {
   [[ ${1:-} == setup ]] || { usage >&2; exit 1; }
   shift
+  CONFIGS_ONLY=0
+  PI_MERGE=0
   parse_args "$@"
   OS_NAME=$(read_os)
   validate_os "$OS_NAME"
@@ -98,10 +118,49 @@ main() {
     [[ -t 0 ]] || fail 'Interactive selection requires a TTY; use --select LIST'
     interactive_selection
   fi
-  confirm
-  local -a install_args=(--select "$SELECT_LIST")
-  (( DRY_RUN == 1 )) && install_args+=(--dry-run)
-  DOTFILES_TEST_OS="$OS_NAME" exec bash "$ROOT/install.sh" "${install_args[@]}"
+    local app_select=$SELECT_LIST
+    local pi_selected=0
+    case ",$SELECT_LIST," in *,pi,*) pi_selected=1;; esac
+    if (( PI_MERGE == 1 && pi_selected == 0 )); then fail '--pi-merge requires pi in --select'; fi
+    if (( CONFIGS_ONLY == 1 )); then
+      app_select=
+    else
+      app_select=${app_select//,pi/}
+      app_select=${app_select%,}
+    fi
+    printf '[dotfiles] Preview: applications=%s, configurations=%s\n' "${app_select:-none}" "$SELECT_LIST"
+    confirm
+        if (( pi_selected == 1 )); then
+          pi_preflight
+          if (( PI_MERGE == 1 )); then
+            PYTHONDONTWRITEBYTECODE=1 DOTFILES_TEST_OS="$OS_NAME" PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" bash "$ROOT/scripts/setup-pi.sh" --dry-run --merge >/dev/null || fail 'Pi target validation failed; no applications were installed'
+          else
+            PYTHONDONTWRITEBYTECODE=1 DOTFILES_TEST_OS="$OS_NAME" PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" bash "$ROOT/scripts/setup-pi.sh" --dry-run >/dev/null || fail 'Pi target validation failed; no applications were installed'
+          fi
+        fi
+    if (( CONFIGS_ONLY == 0 )) && [[ -n "$app_select" ]]; then
+      DOTFILES_TEST_OS="$OS_NAME" DOTFILES_OS_RELEASE="${DOTFILES_OS_RELEASE:-}" DOTFILES_APP_SELECT="${app_select//,/ }" DOTFILES_DRY_RUN="$DRY_RUN" bash "$ROOT/scripts/install-apps.sh" --yes || fail 'Application installation failed; no configuration links were changed'
+    fi
+        if (( pi_selected == 1 )); then
+          if (( DRY_RUN == 1 )); then
+            if (( PI_MERGE == 1 )); then
+PYTHONDONTWRITEBYTECODE=1 bash "$ROOT/scripts/setup-pi.sh" --dry-run --merge
+            else
+              PYTHONDONTWRITEBYTECODE=1 bash "$ROOT/scripts/setup-pi.sh" --dry-run
+            fi
+          elif (( PI_MERGE == 1 )); then
+            PYTHONDONTWRITEBYTECODE=1 bash "$ROOT/scripts/setup-pi.sh" --merge
+else
+            PYTHONDONTWRITEBYTECODE=1 bash "$ROOT/scripts/setup-pi.sh"
+          fi
+        fi
+    local config_select=$SELECT_LIST
+    config_select=${config_select//,pi/}
+    config_select=${config_select#pi,}
+    [[ "$config_select" == pi ]] && config_select=
+    local -a install_args=(--select "$config_select")
+    (( DRY_RUN == 1 )) && install_args+=(--dry-run)
+    DOTFILES_TEST_OS="$OS_NAME" exec bash "$ROOT/install.sh" "${install_args[@]}"
 }
 
 main "$@"
