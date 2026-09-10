@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+usage() {
+  printf '%s\n' 'Usage: ./dotfiles setup [--select LIST] [--dry-run] [--yes]'
+}
+
+fail() {
+  printf '[dotfiles] %s\n' "$1" >&2
+  exit 1
+}
+
+read_os() {
+  if [[ -n ${DOTFILES_OS:-} ]]; then
+    printf '%s\n' "$DOTFILES_OS"
+  else
+    uname -s
+  fi
+}
+
+validate_os() {
+  case "$1" in
+    Darwin) ;;
+    Linux) ;;
+    *) fail "Unsupported OS: $1" ;;
+  esac
+}
+
+validate_linux_distribution() {
+  local release_file=${DOTFILES_OS_RELEASE:-/etc/os-release}
+  local key value distro=
+  [[ -r "$release_file" ]] || fail 'Cannot identify Linux distribution'
+  while IFS='=' read -r key value; do
+    if [[ "$key" == ID ]]; then
+      distro=${value#\"}
+      distro=${distro%\"}
+      break
+    fi
+  done < "$release_file"
+  case "$distro" in
+    ubuntu|debian) ;;
+    *) fail "Unsupported Linux distribution: ${distro:-unknown}" ;;
+  esac
+}
+
+parse_args() {
+  SELECT_LIST=
+  DRY_RUN=0
+  YES=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --select)
+        [[ $# -gt 1 && -n "$2" ]] || fail 'Missing selection'
+        SELECT_LIST=$2
+        shift
+        ;;
+      --dry-run) DRY_RUN=1 ;;
+      --yes) YES=1 ;;
+      *) usage >&2; fail "Unknown option: $1" ;;
+    esac
+    shift
+  done
+}
+
+interactive_selection() {
+  local choices='ghostty,tmux,herdr,starship,zsh,opencode'
+  [[ "$OS_NAME" == Darwin ]] && choices+=',aerospace'
+  printf 'Available config IDs: %s\n' "$choices"
+  printf 'Select comma-separated IDs (or press Enter to cancel): '
+  IFS= read -r SELECT_LIST || SELECT_LIST=
+  [[ -n "$SELECT_LIST" ]] || { printf 'Cancelled; no changes made.\n'; exit 0; }
+}
+
+confirm() {
+  (( DRY_RUN == 1 || YES == 1 )) && return 0
+  [[ -t 0 ]] || fail 'Explicit --yes is required in noninteractive mode'
+  printf 'Apply these links? [y/N] '
+  local answer
+  IFS= read -r answer || answer=
+  case "$answer" in
+    y|Y) ;;
+    *) printf 'Cancelled; no changes made.\n'; exit 0 ;;
+  esac
+}
+
+main() {
+  [[ ${1:-} == setup ]] || { usage >&2; exit 1; }
+  shift
+  parse_args "$@"
+  OS_NAME=$(read_os)
+  validate_os "$OS_NAME"
+  if [[ "$OS_NAME" == Linux ]]; then
+    validate_linux_distribution
+  fi
+  if [[ -z "$SELECT_LIST" ]]; then
+    [[ -t 0 ]] || fail 'Interactive selection requires a TTY; use --select LIST'
+    interactive_selection
+  fi
+  confirm
+  local -a install_args=(--select "$SELECT_LIST")
+  (( DRY_RUN == 1 )) && install_args+=(--dry-run)
+  DOTFILES_TEST_OS="$OS_NAME" exec bash "$ROOT/install.sh" "${install_args[@]}"
+}
+
+main "$@"

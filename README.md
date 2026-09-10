@@ -4,6 +4,17 @@ Configuración para macOS y Linux con zsh, Ghostty, Starship, OpenCode y un mult
 
 ## Instalación rápida
 
+La primera entrega de la CLI configura enlaces selectivos; no instala aplicaciones ni paquetes. En macOS y Ubuntu/Debian puede revisar el plan y aplicar solo las superficies elegidas:
+
+```bash
+./dotfiles setup --select tmux,starship --dry-run
+./dotfiles setup --select tmux,starship --yes
+```
+
+Sin `--select`, `./dotfiles setup` ofrece un menú interactivo únicamente en una terminal. Sin `--yes`, la confirmación es explícita y por defecto se cancela; `--dry-run` nunca crea archivos ni ejecuta gestores. Aerospace aparece y se acepta solo en macOS. Ghostty en Debian/Ubuntu (incluido antes de 26.04) requiere instalación manual posterior; no se usa ningún instalador comunitario.
+
+Esta entrega no instala Pi ni lo ofrece en el selector. Para la configuración opcional existente, use `./scripts/setup-pi.sh` por separado. La instalación de aplicaciones queda para la segunda entrega.
+
 Elija `tmux`, `herdr` o `both`. `both` es el valor predeterminado y enlaza las dos configuraciones; no obliga a usar ambos. Para una sesión normal, tmux es la opción general. [Herdr](https://herdr.dev) es una alternativa parecida a tmux, enfocada en sesiones con agentes de IA. No anide un multiplexor dentro del otro.
 
 ### macOS
