@@ -72,7 +72,47 @@ Aplique el mismo procedimiento al destino correspondiente, verificando siempre e
 - **Ghostty:** `Command+Shift+O` abre la vista general de pestañas; copia al seleccionar texto.
 - **macOS/Aerospace:** `Ctrl-Alt-1..6` cambia de espacio y `Ctrl-Alt-Shift-1..6` mueve la ventana; consulte `config/aerospace/aerospace.toml` para el resto de atajos y reglas.
 
-## Comprobación y Pi
+## Instalar Pi
+
+[Pi](https://pi.dev) es un agente de programación minimalista para la terminal: puede trabajar con archivos y comandos, y se amplía mediante paquetes, extensiones, skills y temas. Esta instalación es opcional e independiente de `install.sh`: instala Pi y configura sus paquetes, preferencias y tema, sin activar los demás dotfiles del repositorio.
+
+Requiere macOS o Linux, Node.js `>=22.19.0`, `python3`, `pnpm` y `npm`. Además, pnpm debe tener configurado manualmente `global-bin-dir`; `pnpm setup` no se ejecuta automáticamente y el script no modifica `PATH`, shells ni usa `sudo`. La CLI queda fijada en `@earendil-works/pi-coding-agent@0.85.1`.
+
+Desde la raíz de este repositorio, elija **una** ruta: instalación nueva (rechaza cualquier destino existente) o combinación con una configuración de Pi ya existente. El `dry-run` solo muestra el plan; no escribe ni invoca gestores.
+
+### Instalación nueva
+
+```bash
+cd /ruta/a/Dotfiles-LuHer
+./scripts/setup-pi.sh --dry-run
+# Revise el plan; después, si lo aprueba:
+./scripts/setup-pi.sh
+```
+
+### Configuración existente
+
+```bash
+cd /ruta/a/Dotfiles-LuHer
+./scripts/setup-pi.sh --dry-run --merge
+# Revise el plan; después, si lo aprueba:
+./scripts/setup-pi.sh --merge
+```
+
+La combinación conserva ajustes y paquetes no relacionados, reemplaza deliberadamente las siete versiones fijadas y respalda `settings.json` y el tema coincidente con permisos privados. No lee ni copia `auth.json`, `mcp.json`, `models.json` ni `sessions/`. Tras instalar, reinicie Pi y autentíquese manualmente con `/login`; las conexiones MCP y Engram, así como sus secretos, deben configurarse aparte y no se restauran.
+
+| Paquete | Versión | Propósito |
+| --- | ---: | --- |
+| `gentle-pi` | `2.5.0` | Capa de operación para flujos SDD/OpenSpec, coordinación de agentes, TDD estricto, guardas y revisión; incluye preferencias y UI de Gentle Shell. |
+| `pi-intercom` | `0.13.0` | Mensajería 1:1 entre sesiones Pi locales mediante un broker IPC. |
+| `pi-web-access` | `0.28.0` | Búsqueda web, extracción de contenido y herramientas de acceso a páginas. |
+| `pi-lens` | `4.1.5` | Diagnósticos y navegación mediante LSP, linters y análisis estructural. |
+| `@juicesharp/rpiv-ask-user-question` | `2.9.0` | Cuestionarios estructurados con opciones tipadas para pedir decisiones al usuario sin adivinar. |
+| `pi-mcp-adapter` | `2.32.1` | Puente hacia servidores MCP con descubrimiento bajo demanda y una herramienta proxy compacta. |
+| `gentle-engram` | `0.1.12` | Integra memoria persistente y herramientas `mem_*`; requiere un servidor Engram configurado aparte, no incluido ni ejecutado por este repositorio. |
+
+El snapshot también selecciona el tema `catppuccin-mocha` y activa los comandos de skills. Los paquetes y extensiones de terceros ejecutan código con los privilegios completos de su usuario; revise sus fuentes y mantenga privados los respaldos. Para fallos y recuperación, consulte la [guía detallada de Pi](config/pi/README.md).
+
+## Comprobaciones
 
 Para repetir validaciones sin instalar ni recargar nada:
 
@@ -82,6 +122,8 @@ Para repetir validaciones sin instalar ni recargar nada:
 
 Las pruebas de portabilidad simulan Linux y no representan una prueba en su máquina Linux real. `shellcheck` se ejecuta solo si está instalado.
 
-El bootstrap de Pi es opcional y se explica en la [guía](config/pi/README.md). Es independiente de `install.sh`: use `./scripts/setup-pi.sh --dry-run` y luego el modo nuevo o `--merge` de forma deliberada.
+Tras instalar, abra un shell nuevo o recargue zsh con `exec zsh`. Verifique los enlaces y ejecute `./scripts/check.sh` después de actualizar el repositorio.
 
-Tras instalar, abra un shell nuevo o recargue zsh con `exec zsh`. Para aplicar cambios de tmux o Herdr, use sus atajos de recarga o cierre y vuelva a abrir la sesión. Verifique los enlaces y ejecute `./scripts/check.sh` después de actualizar el repositorio.
+## Recarga de tmux y Herdr
+
+Para aplicar cambios de tmux o Herdr, use sus atajos de recarga o cierre y vuelva a abrir la sesión.
