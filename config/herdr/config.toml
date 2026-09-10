@@ -16,7 +16,7 @@ yellow = "#c4b28a"
 blue = "#949fb5"
 
 [terminal]
-# macOS panes use zsh as login shells, including Homebrew's login PATH setup.
+# Requires zsh at /bin/zsh; install that path or adapt this setting before use.
 default_shell = "/bin/zsh"
 shell_mode = "login"
 new_cwd = "follow"

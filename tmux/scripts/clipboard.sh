@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+os=${DOTFILES_TEST_OS:-$(uname -s)}
+case "$os" in
+Darwin)
+  if command -v pbcopy >/dev/null 2>&1; then
+    exec pbcopy
+  fi
+  ;;
+Linux)
+  if command -v wl-copy >/dev/null 2>&1; then
+    exec wl-copy
+  fi
+  if command -v xclip >/dev/null 2>&1; then
+    exec xclip -selection clipboard
+  fi
+  if command -v xsel >/dev/null 2>&1; then
+    exec xsel --clipboard --input
+  fi
+  ;;
+esac
+
+cat >/dev/null
+exit 0

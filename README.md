@@ -1,227 +1,87 @@
 # Dotfiles LuHer
 
-Practical dotfiles for a lightweight Ghostty + tmux + zsh + Starship + Aerospace workflow, with Herdr available as an opt-in agent-focused alternative to tmux.
+Configuración para macOS y Linux con zsh, Ghostty, Starship, OpenCode y un multiplexor de terminal. El instalador crea enlaces simbólicos y respalda los destinos existentes; no instala aplicaciones ni paquetes.
 
-## What is included
+## Instalación rápida
 
-- Ghostty config
-- Aerospace config
-- Starship prompt config
-- tmux config
-- Herdr config (optional tmux alternative)
-- zsh config
-- install script with backups, dry-run support, and safe symlink replacement
+Elija `tmux`, `herdr` o `both`. `both` es el valor predeterminado y enlaza las dos configuraciones; no obliga a usar ambos. Para una sesión normal, tmux es la opción general. [Herdr](https://herdr.dev) es una alternativa parecida a tmux, enfocada en sesiones con agentes de IA. No anide un multiplexor dentro del otro.
 
-Kitty is **not** the main terminal here. It is included only as a recommended companion tool for image rendering with `kitten icat`.
-
-## Quick install
-
-1. Clone this repository.
-2. Review the configs before linking them.
-3. Preview the installer if you want a safe check first:
+### macOS
 
 ```bash
-./install.sh --dry-run
+git clone https://github.com/LuHer18/Dotfiles-LuHer.git
+cd Dotfiles-LuHer
+./scripts/check.sh
+./install.sh --dry-run --multiplexer tmux
+# Revise la vista previa y, si es correcta:
+./install.sh --multiplexer tmux
 ```
 
-4. Run the installer:
+### Linux
 
 ```bash
-./install.sh
+git clone https://github.com/LuHer18/Dotfiles-LuHer.git
+cd Dotfiles-LuHer
+./scripts/check.sh
+./install.sh --dry-run --multiplexer tmux
+# Revise la vista previa y, si es correcta:
+./install.sh --multiplexer tmux
 ```
 
-The script will:
+Cambie `tmux` por `herdr` si solo quiere Herdr, o por `both` para el comportamiento predeterminado. `check.sh` y `--dry-run` no activan ni modifican la configuración del usuario. No ejecute la instalación hasta revisar la vista previa.
 
-- create missing target directories
-- back up any existing target file or symlink
-- skip targets that are already linked correctly
-- replace targets with symlinks to this repository
+## Requisitos
 
-The installer deploys the targets listed in `install.sh`; those targets match the mappings declared in `dotfiles.json`.
+El entorno mínimo para ejecutar las comprobaciones es `bash` y, para validar todo lo posible, también `python3` y `zsh`. El script omite las comprobaciones de herramientas que no estén instaladas y valida tmux solo si encuentra `tmux`. `shellcheck` es opcional. La configuración de zsh usa `nvim` como editor; instálelo si desea utilizar ese editor.
 
-Backups are stored in:
+Aplicaciones recomendadas o necesarias según lo que vaya a usar:
+
+- **Necesarios para sus funciones:** zsh; Ghostty para usar el terminal configurado; Starship para el prompt; y una Nerd Font (la configuración usa JetBrainsMono Nerd Font).
+- **Multiplexor:** tmux **o** Herdr; no necesita instalar ambos. En macOS puede instalar tmux/Starship y otras herramientas con su gestor habitual. Instale Herdr desde su [sitio oficial](https://herdr.dev) o [repositorio oficial](https://github.com/herdrdev/herdr); no se prescriben paquetes para cada distribución.
+- **macOS:** Aerospace es opcional y solo se enlaza en macOS. Instálelo desde su [documentación oficial](https://nikitabobko.github.io/AeroSpace/).
+- **Linux:** el portapapeles de tmux necesita `wl-copy` en Wayland o `xclip`/`xsel` en X11. Sin ellos, tmux sigue funcionando, pero no copiará al portapapeles.
+
+Ghostty y Herdr no se instalan mediante este repositorio. Use sus instrucciones oficiales para su sistema; no se asumen paquetes concretos ni portabilidad completa de todas las herramientas entre distribuciones.
+
+Las integraciones opcionales de zsh (`eza`, `fnm`, `zoxide`, `atuin`, `zsh-autosuggestions` y `zsh-syntax-highlighting`) solo se activan cuando están disponibles. Kitty es opcional para `kitten icat`.
+
+## Qué enlaza el instalador
+
+`install.sh` enlaza Ghostty, OpenCode, Starship y zsh; en macOS también Aerospace. Según el selector, enlaza tmux (`~/.tmux.conf` y `~/.config/tmux/scripts`) y/o Herdr. `dotfiles.json` documenta los mapeos, pero no es un instalador.
+
+Los destinos existentes se mueven a `~/.dotfiles-backups/<timestamp>/` antes de crear el enlace. Estas copias son respaldos, no aplicaciones instaladas.
+
+### Restaurar un respaldo con seguridad
+
+Compruebe primero que el destino es el enlace administrado y quite solo ese enlace; no use un `rm -r` recursivo:
 
 ```bash
-~/.dotfiles-backups/<timestamp>/
+if [ -L "$HOME/.zshrc" ]; then
+  readlink "$HOME/.zshrc"
+  rm "$HOME/.zshrc"
+fi
+mv "$HOME/.dotfiles-backups/<timestamp>/.zshrc" "$HOME/.zshrc"
 ```
 
-Restore is manual by design so nothing is overwritten automatically behind your back:
+Aplique el mismo procedimiento al destino correspondiente, verificando siempre el enlace y la ruta del respaldo antes de moverlo.
 
-```bash
-rm ~/.zshrc
-mv ~/.dotfiles-backups/<timestamp>/.zshrc ~/.zshrc
-```
+## Comportamiento y atajos
 
-Repeat the same pattern for any other managed target: remove the managed symlink first, then move the backup into place.
+- **tmux:** el prefijo es `Ctrl-a`; `Ctrl-a c` crea una ventana, `Ctrl-a d` divide verticalmente, `Ctrl-a v` divide lado a lado, `Ctrl-a h/j/k/l` mueve el foco y `Ctrl-a H/J/K/L` redimensiona. `Alt`+flechas también mueve el foco. `Ctrl-a r` recarga `~/.tmux.conf`.
+- **Herdr:** usa `Ctrl-a`; `Ctrl-a c`, `n` y `p` crean y recorren pestañas; `Ctrl-a h/j/k/l` mueve el foco; `Ctrl-a v` y `d` dividen; `Ctrl-a r` recarga y `Ctrl-a Shift-r` entra en modo de redimensionamiento. Requiere `/bin/zsh` o adaptar su configuración.
+- **Ghostty:** `Command+Shift+O` abre la vista general de pestañas; copia al seleccionar texto.
+- **macOS/Aerospace:** `Ctrl-Alt-1..6` cambia de espacio y `Ctrl-Alt-Shift-1..6` mueve la ventana; consulte `config/aerospace/aerospace.toml` para el resto de atajos y reglas.
 
-## Declared targets
+## Comprobación y Pi
 
-These mappings are declared in `dotfiles.json` and deployed by `install.sh`.
-
-| Repository file | Target | `install.sh` |
-|---|---|---|
-| `config/ghostty/config` | `~/.config/ghostty/config` | Yes |
-| `config/aerospace/aerospace.toml` | `~/.config/aerospace/aerospace.toml` | Yes |
-| `config/herdr/config.toml` | `~/.config/herdr/config.toml` | Yes |
-| `config/opencode/tui.json` | `~/.config/opencode/tui.json` | Yes |
-| `config/starship.toml` | `~/.config/starship.toml` | Yes |
-| `tmux/scripts/` | `~/.config/tmux/scripts/` | Yes |
-| `tmux/.tmux.conf` | `~/.tmux.conf` | Yes |
-| `zsh/.zshrc` | `~/.zshrc` | Yes |
-
-## Dependencies and optional features
-
-### Core tools
-
-- Ghostty
-- Aerospace
-- tmux
-- Herdr (optional)
-- zsh
-- Starship
-- JetBrainsMono Nerd Font or another Nerd Font
-
-### Optional command-line integrations used by `zsh/.zshrc`
-
-These are optional. The shell config checks for them before enabling anything.
-
-| Tool | Purpose |
-|---|---|
-| `eza` | Better `ls`, `ll`, `la`, and `lt` aliases |
-| `fnm` | Auto-load Node.js versions on directory change |
-| `zoxide` | Smarter directory jumping |
-| `atuin` | Better shell history |
-| `zsh-autosuggestions` | Inline command suggestions |
-| `zsh-syntax-highlighting` | Shell syntax highlighting |
-| Kitty | Optional `kitten icat` image rendering via the `icat` alias when `kitten` is installed |
-
-Install Aerospace with Homebrew:
-
-```bash
-brew install --cask nikitabobko/tap/aerospace
-```
-
-Install Herdr with Homebrew:
-
-```bash
-brew install herdr
-```
-
-## Aerospace workspace layout
-
-This setup is still conservative, but it already includes a small amount of app automation for the main development workflow.
-
-Tiled windows use 8px inner and outer gaps for a small visual separation between applications.
-
-| Workspace | Purpose | Actual behavior |
-|---|---|---|
-| 1 | Normal/shared use | Floating default |
-| 2 | Main terminal | Ghostty auto-moves here |
-| 3 | Code editors | VS Code and IntelliJ auto-move here |
-| 4 | Browser/API work | Postman auto-moves here; browsers stay manual |
-| 5 | Data/infra | Docker Desktop and DBeaver auto-move here |
-| 6 | Communication or overflow | Manual |
-
-Workspace 1 is kept floating by default so it feels close to normal macOS behavior. Zen Browser is intentionally not moved automatically because it is used for both normal and development browsing. Move windows manually with `ctrl-alt-shift-<workspace>` when needed.
-
-Ghostty opens automatically in workspace 2 as the main development terminal. VS Code and IntelliJ open automatically in workspace 3 for code editing. Postman opens in workspace 4 for API testing. Docker Desktop and DBeaver open in workspace 5 for data and infrastructure.
-
-Core shortcuts:
-
-| Shortcut | Action |
-|---|---|
-| `ctrl-alt-1..6` | Switch workspace |
-| `ctrl-alt-shift-1..6` | Move focused window to workspace |
-| `ctrl-alt-h/j/k/l` | Focus tiled windows |
-| `ctrl-alt-shift-h/j/k/l` | Move tiled windows |
-| `ctrl-alt-enter` | Toggle Aerospace fullscreen |
-| `ctrl-alt-space` | Toggle floating/tiling |
-| `ctrl-alt-shift-enter` | Force focused window back to tiling |
-| `ctrl-alt-minus` / `ctrl-alt-equal` | Resize focused tile |
-| `ctrl-alt-r` | Balance tiled window sizes |
-
-If a window gets stuck floating, focus it and press `ctrl-alt-shift-enter` to force it back into tiling, then `ctrl-alt-r` to balance sizes.
-
-## tmux behavior
-
-- Prefix is `Ctrl-a`
-- Mouse mode is enabled
-- Copy-mode uses Vim keys
-- Mouse selection in copy-mode copies the selected text to `pbcopy` on macOS
-- New panes and windows start in the current pane directory
-- Status scripts show window name, Git branch, CPU, RAM, and time
-
-The tmux status helpers are installed under `~/.config/tmux/scripts`, so the status line does not depend on a hard-coded repository location. The bundled `pbcopy` clipboard integration is macOS-specific.
-
-## Herdr behavior (optional)
-
-Herdr is an opt-in alternative for agent-focused sessions; tmux remains installed and unchanged. Start one multiplexer per terminal: **do not nest tmux and Herdr**. Nested multiplexers conflict on prefix handling, and Herdr cannot detect agents running behind a tmux process inside a Herdr pane.
-
-The managed config uses the built-in Kanagawa theme with the current tmux status colors, starts `/bin/zsh` as a macOS login shell, and inherits the active pane directory for new panes and tabs.
-
-| Key | Action |
-|---|---|
-| `Ctrl-a c` | Create tab |
-| `Ctrl-a n` / `Ctrl-a p` | Next / previous tab |
-| `Ctrl-a h/j/k/l` | Focus left / down / up / right pane |
-| `Ctrl-a v` | Split side by side |
-| `Ctrl-a d` | Split stacked |
-| `Ctrl-a r` | Reload Herdr config |
-| `Ctrl-a Shift-r` | Enter resize mode |
-
-Herdr's OpenCode integration is installed separately with `herdr integration install opencode`. It adds only `~/.config/opencode/plugins/herdr-agent-state.js`; it reports OpenCode lifecycle state and session identity for OpenCode processes running inside Herdr and does not modify `~/.config/opencode/opencode.json`.
-
-## Ghostty behavior
-
-- Ghostty is the main terminal for this repo
-- `shell-integration = zsh`
-- `copy-on-select = true`
-- `Command+Shift+O` opens the tab overview
-- Background blur and a slightly transparent window are enabled
-
-## zsh behavior
-
-- zsh is the only shell targeted here
-- `avatar` prints the repository ANSI avatar
-- `icat` is available only if Kitty tools are installed
-- Optional integrations enable themselves only when their command or file exists
-
-## Non-destructive checks
-
-Run the repo check script any time after editing configs:
+Para repetir validaciones sin instalar ni recargar nada:
 
 ```bash
 ./scripts/check.sh
 ```
 
-It runs syntax/config validation only. It does not install, relink, reload, or mutate your live setup.
+Las pruebas de portabilidad simulan Linux y no representan una prueba en su máquina Linux real. `shellcheck` se ejecuta solo si está instalado.
 
-## Image rendering with Kitty tools
+El bootstrap de Pi es opcional y se explica en la [guía](config/pi/README.md). Es independiente de `install.sh`: use `./scripts/setup-pi.sh --dry-run` y luego el modo nuevo o `--merge` de forma deliberada.
 
-Even if Ghostty is your main terminal, you can keep Kitty installed for its graphics tooling.
-
-Example:
-
-```bash
-kitten icat image.png
-```
-
-## Notes
-
-- The zsh config stays compatible with zsh only. No fish setup is included.
-- The prompt shows current directory, Git branch, Git status, and command duration.
-- The configs avoid secrets and reduce machine-specific absolute paths where practical.
-
-## Updating
-
-After changing files in this repository, re-run:
-
-```bash
-./install.sh
-```
-
-For a safe preview first:
-
-```bash
-./install.sh --dry-run
-```
+Tras instalar, abra un shell nuevo o recargue zsh con `exec zsh`. Para aplicar cambios de tmux o Herdr, use sus atajos de recarga o cierre y vuelva a abrir la sesión. Verifique los enlaces y ejecute `./scripts/check.sh` después de actualizar el repositorio.

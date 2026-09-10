@@ -1,173 +1,114 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
-
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_ROOT="${HOME}/.dotfiles-backups"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP_DIR="${BACKUP_ROOT}/${TIMESTAMP}"
 CREATED_BACKUP_DIR=0
 DRY_RUN=0
-
-LINK_SOURCES=(
-  "${REPO_DIR}/config/ghostty/config"
-  "${REPO_DIR}/config/aerospace/aerospace.toml"
-  "${REPO_DIR}/config/herdr/config.toml"
-  "${REPO_DIR}/config/opencode/tui.json"
-  "${REPO_DIR}/config/starship.toml"
-  "${REPO_DIR}/tmux/scripts"
-  "${REPO_DIR}/tmux/.tmux.conf"
-  "${REPO_DIR}/zsh/.zshrc"
-)
-
-LINK_TARGETS=(
-  "${HOME}/.config/ghostty/config"
-  "${HOME}/.config/aerospace/aerospace.toml"
-  "${HOME}/.config/herdr/config.toml"
-  "${HOME}/.config/opencode/tui.json"
-  "${HOME}/.config/starship.toml"
-  "${HOME}/.config/tmux/scripts"
-  "${HOME}/.tmux.conf"
-  "${HOME}/.zshrc"
-)
-
-log() {
-  printf '[dotfiles] %s\n' "$1"
-}
+MULTIPLEXER=both
+OS="${DOTFILES_TEST_OS:-$(uname -s)}"
+case "$OS" in Darwin | Linux) ;; *)
+  printf '[dotfiles] Unsupported OS: %s\n' "$OS" >&2
+  exit 1
+  ;;
+esac
+[[ "$OS" == Linux ]] && printf '[dotfiles] Linux detected; skipping Aerospace\n'
 
 usage() {
   cat <<'EOF'
-Usage: ./install.sh [--dry-run]
-
-Options:
-  -n, --dry-run  Print the actions without changing files
-  -h, --help     Show this help text
-
-Restore backups manually from ~/.dotfiles-backups/<timestamp>/ if needed.
+Usage: ./install.sh [--dry-run] [--multiplexer tmux|herdr|both]
+  -n, --dry-run                 Preview without changing files
+  --multiplexer VALUE           Link tmux, Herdr, or both (default: both)
+  -h, --help                    Show this help
 EOF
 }
-
+log() { printf '[dotfiles] %s\n' "$1"; }
 run_cmd() {
-  if [[ ${DRY_RUN} -eq 1 ]]; then
+  [[ $DRY_RUN -eq 1 ]] && {
     log "DRY RUN: $*"
-    return 0
-  fi
-
+    return
+  }
   "$@"
 }
-
-did_or_would() {
-  if [[ ${DRY_RUN} -eq 1 ]]; then
-    printf 'Would %s' "$1"
-  else
-    printf '%s' "$1"
-  fi
-}
-
-ensure_backup_dir() {
-  if [[ ${CREATED_BACKUP_DIR} -eq 0 ]]; then
-    run_cmd mkdir -p "${BACKUP_DIR}"
-    CREATED_BACKUP_DIR=1
-  fi
-}
-
+did_or_would() { [[ $DRY_RUN -eq 1 ]] && printf 'Would %s' "$1" || printf '%s' "$1"; }
+ensure_backup_dir() { [[ $CREATED_BACKUP_DIR -eq 1 ]] || {
+  run_cmd mkdir -p "$BACKUP_DIR"
+  CREATED_BACKUP_DIR=1
+}; }
 backup_target() {
-  local target="$1"
-
-  if [[ ! -e "${target}" && ! -L "${target}" ]]; then
-    return 0
-  fi
-
+  local target=$1 relative backup
+  if [[ ! -e "$target" && ! -L "$target" ]]; then return 0; fi
   ensure_backup_dir
-
-  local relative_target
-  relative_target="${target#${HOME}/}"
-  local backup_path="${BACKUP_DIR}/${relative_target}"
-
-  run_cmd mkdir -p "$(dirname "${backup_path}")"
-  run_cmd mv "${target}" "${backup_path}"
-  log "$(did_or_would "Back up") ${target} -> ${backup_path}"
+  relative=${target#"$HOME/"}
+  backup="$BACKUP_DIR/$relative"
+  run_cmd mkdir -p "$(dirname "$backup")"
+  run_cmd mv "$target" "$backup"
+  log "$(did_or_would 'Back up') $target -> $backup"
 }
-
 create_link() {
-  local source="$1"
-  local target="$2"
-
-  if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${source}" ]]; then
-    log "Already linked ${target} -> ${source}"
-    return 0
-  fi
-
-  run_cmd mkdir -p "$(dirname "${target}")"
-  backup_target "${target}"
-  run_cmd ln -sfn "${source}" "${target}"
-  log "$(did_or_would "Link") ${target} -> ${source}"
+  local source=$1 target=$2
+  [[ -L "$target" && $(readlink "$target") == "$source" ]] && {
+    log "Already linked $target -> $source"
+    return
+  }
+  run_cmd mkdir -p "$(dirname "$target")"
+  backup_target "$target"
+  run_cmd ln -sfn "$source" "$target"
+  log "$(did_or_would 'Link') $target -> $source"
 }
-
-print_restore_hint() {
-  if [[ ${CREATED_BACKUP_DIR} -eq 1 ]]; then
-    log "To restore a backup, remove the managed symlink first, then move the saved file from ${BACKUP_DIR}"
-    log "Example: rm ${HOME}/.zshrc && mv ${BACKUP_DIR}/.zshrc ${HOME}/.zshrc"
-  fi
-}
-
 parse_args() {
   while [[ $# -gt 0 ]]; do
-    case "$1" in
-      -n|--dry-run)
-        DRY_RUN=1
-        ;;
-      -h|--help)
-        usage
-        exit 0
-        ;;
-      *)
-        log "Unknown option: $1"
-        usage
+    case $1 in -n | --dry-run) DRY_RUN=1 ;; --multiplexer)
+      [[ $# -gt 1 ]] || {
+        log 'Missing multiplexer value'
         exit 1
-        ;;
+      }
+      MULTIPLEXER=$2
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      log "Unknown option: $1"
+      usage
+      exit 1
+      ;;
     esac
     shift
   done
+  case $MULTIPLEXER in tmux | herdr | both) ;; *)
+    log "Invalid multiplexer: $MULTIPLEXER"
+    exit 1
+    ;;
+  esac
 }
-
 main() {
   parse_args "$@"
-
-  local index
-  local source
-  local target
-
-  if [[ ${#LINK_SOURCES[@]} -ne ${#LINK_TARGETS[@]} ]]; then
-    log "Internal error: link sources and targets are out of sync"
-    exit 1
-  fi
-
-  for index in "${!LINK_SOURCES[@]}"; do
-    source="${LINK_SOURCES[${index}]}"
-    target="${LINK_TARGETS[${index}]}"
-
-    if [[ ! -e "${source}" ]]; then
-      log "Missing source file: ${source}"
+  local -a sources=("$REPO_DIR/config/ghostty/config" "$REPO_DIR/config/opencode/tui.json" "$REPO_DIR/config/starship.toml" "$REPO_DIR/zsh/.zshrc") targets=("$HOME/.config/ghostty/config" "$HOME/.config/opencode/tui.json" "$HOME/.config/starship.toml" "$HOME/.zshrc")
+  [[ $OS == Darwin ]] && {
+    sources+=("$REPO_DIR/config/aerospace/aerospace.toml")
+    targets+=("$HOME/.config/aerospace/aerospace.toml")
+  }
+  [[ $MULTIPLEXER == tmux || $MULTIPLEXER == both ]] && {
+    sources+=("$REPO_DIR/tmux/scripts" "$REPO_DIR/tmux/.tmux.conf")
+    targets+=("$HOME/.config/tmux/scripts" "$HOME/.tmux.conf")
+  }
+  [[ $MULTIPLEXER == herdr || $MULTIPLEXER == both ]] && {
+    sources+=("$REPO_DIR/config/herdr/config.toml")
+    targets+=("$HOME/.config/herdr/config.toml")
+  }
+  local i
+  for i in "${!sources[@]}"; do
+    [[ -e ${sources[i]} ]] || {
+      log "Missing source: ${sources[i]}"
       exit 1
-    fi
-
-    create_link "${source}" "${target}"
+    }
+    create_link "${sources[i]}" "${targets[i]}"
   done
-
-  if [[ ${CREATED_BACKUP_DIR} -eq 1 ]]; then
-    if [[ ${DRY_RUN} -eq 1 ]]; then
-      log "Dry run only: backups would be stored in ${BACKUP_DIR}"
-    else
-      log "Backups stored in ${BACKUP_DIR}"
-    fi
-  else
-    log "No existing files required backup"
-  fi
-
-  print_restore_hint
-
-  log "Done"
+  [[ $CREATED_BACKUP_DIR -eq 1 ]] && log "Backups stored in $BACKUP_DIR" || log 'No existing files required backup'
+  log Done
 }
-
 main "$@"

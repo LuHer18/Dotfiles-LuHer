@@ -1,16 +1,35 @@
-# Portable Pi snapshot
+# Bootstrap de Pi
 
-This directory is a safe, non-activating snapshot of selected Pi preferences, the Catppuccin Mocha theme, and the exact package versions currently installed on the source machine. It is not wired into the installer and does not replace or activate live Pi settings.
+`scripts/setup-pi.sh` instala opcionalmente Pi en macOS o Linux y combina este snapshot sin activar autenticación, sesiones, MCP, modelos ni configuración de proyecto.
 
-## Deliberate restore
+## Uso
 
-Review the files first, then merge only the settings you want into `~/.pi/agent/settings.json` and copy the theme to `~/.pi/agent/themes/` deliberately. Preserve any local settings while merging; do not overwrite the live file wholesale unless that is intentional. Install the listed packages separately only after reviewing their code and confirming the pinned versions remain appropriate. Restart Pi or reload its resources as appropriate.
+Desde la raíz del repositorio, para una instalación nueva:
 
-## Included
+```bash
+./scripts/setup-pi.sh --dry-run
+# Revise el plan antes de instalar:
+./scripts/setup-pi.sh
+```
 
-- `settings.json`: selected theme, skill-command preference, and pinned package specs.
-- `themes/catppuccin-mocha.json`: the selected custom theme.
+Si ya tiene configuración de Pi, use esta alternativa:
 
-## Excluded private or machine-specific data
+```bash
+./scripts/setup-pi.sh --dry-run --merge
+# Revise el plan antes de combinar configuraciones:
+./scripts/setup-pi.sh --merge
+```
 
-This snapshot intentionally excludes authentication and session data (`auth.json`, `sessions/`), MCP configuration, private/custom model and provider configuration, account-specific startup model choices, trust decisions, runtime metadata, managed package assets, and absolute private paths. No live settings are changed by this repository.
+Use `PI_CODING_AGENT_DIR=/ruta/absoluta` para otro destino. Exige Node >=22.19.0, Python 3, pnpm con `global-bin-dir` configurado y npm. Configure pnpm manualmente según su guía oficial; este script no modifica shell/PATH, no usa sudo ni instala gestores.
+
+Instala exactamente `@earendil-works/pi-coding-agent@0.85.1` con `pnpm add --global --ignore-scripts` y los siete paquetes fijados mediante `pi install` fuera del proyecto. `--no-approve` está documentado por Pi para ignorar configuración de proyecto en ese comando; no es una sandbox.
+
+## Seguridad y fallos
+
+Los paquetes Pi ejecutan extensiones con todos los permisos del usuario y las skills pueden instruir acciones arbitrarias. Revise sus fuentes. El CLI usa `--ignore-scripts`, pero la instalación de extensiones ejecuta código de terceros. En `--merge` se lee y respalda privadamente el `settings.json` completo, que puede contener campos sensibles arbitrarios. Los archivos separados `auth.json`, `mcp.json`, `models.json` y `sessions/` nunca se leen ni copian.
+
+El modo predeterminado rechaza cualquier destino existente. `--merge` respalda settings y el tema coincidente con permisos 600/700, conserva claves y paquetes no relacionados y reemplaza deliberadamente las siete versiones. Rechaza symlinks antes de cualquier gestor. Publica primero el tema y después settings: son dos operaciones atómicas separadas, no una transacción; un fallo posterior puede dejar solo el tema actualizado. Si falla un paquete, se detiene y deja estado parcial; no activa preferencias.
+
+Los respaldos pueden contener los campos sensibles de `settings.json`; manténgalos fuera de Git y revíselos antes de restaurar. No incluyen credenciales almacenadas en archivos separados ni permiten deshacer las instalaciones de paquetes. Luego autentíquese manualmente con `pi` y `/login`. MCP, Engram y otros servicios requieren configuración manual; este bootstrap no instala servidores.
+
+`--dry-run` no escribe ni invoca gestores.
