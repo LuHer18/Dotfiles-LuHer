@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 usage() {
-  printf '%s\n' 'Usage: ./dotfiles setup [--select LIST] [--dry-run] [--yes] [--configs-only] [--pi-merge]'
+  printf '%s\n' 'Usage: ./dotfiles setup [--select LIST] [--dry-run] [--yes] [--allow-remote-installers] [--configs-only] [--pi-merge]'
 }
 
 fail() {
@@ -49,6 +49,7 @@ parse_args() {
   SELECT_LIST=
   DRY_RUN=0
   YES=0
+  ALLOW_REMOTE_INSTALLERS=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --select)
@@ -58,6 +59,7 @@ parse_args() {
         ;;
       --dry-run) DRY_RUN=1 ;;
       --yes) YES=1 ;;
+      --allow-remote-installers) ALLOW_REMOTE_INSTALLERS=1 ;;
       --configs-only) CONFIGS_ONLY=1 ;;
       --pi-merge) PI_MERGE=1 ;;
       *) usage >&2; fail "Unknown option: $1" ;;
@@ -129,6 +131,12 @@ main() {
       app_select=${app_select%,}
     fi
     printf '[dotfiles] Preview: applications=%s, configurations=%s\n' "${app_select:-none}" "$SELECT_LIST"
+    if [[ "$OS_NAME" == Linux && ",$app_select," == *,herdr,* ]]; then
+      printf '[dotfiles] Remote script: https://herdr.dev/install.sh -> %s/.local/bin (network code runs as your user)\n' "$HOME"
+    fi
+    if [[ "$OS_NAME" == Linux && ",$app_select," == *,starship,* ]]; then
+      printf '[dotfiles] Remote script: https://starship.rs/install.sh -> %s/.local/bin (network code runs as your user)\n' "$HOME"
+    fi
     confirm
         if (( pi_selected == 1 )); then
           pi_preflight
@@ -139,7 +147,9 @@ main() {
           fi
         fi
     if (( CONFIGS_ONLY == 0 )) && [[ -n "$app_select" ]]; then
-      DOTFILES_TEST_OS="$OS_NAME" DOTFILES_OS_RELEASE="${DOTFILES_OS_RELEASE:-}" DOTFILES_APP_SELECT="${app_select//,/ }" DOTFILES_DRY_RUN="$DRY_RUN" bash "$ROOT/scripts/install-apps.sh" --yes || fail 'Application installation failed; no configuration links were changed'
+      install_args=(--yes)
+      (( ALLOW_REMOTE_INSTALLERS == 1 )) && install_args+=(--allow-remote-installers)
+      DOTFILES_TEST_OS="$OS_NAME" DOTFILES_OS_RELEASE="${DOTFILES_OS_RELEASE:-}" DOTFILES_APP_SELECT="${app_select//,/ }" DOTFILES_DRY_RUN="$DRY_RUN" bash "$ROOT/scripts/install-apps.sh" "${install_args[@]}" || fail 'Application installation failed; no configuration links were changed'
     fi
         if (( pi_selected == 1 )); then
           if (( DRY_RUN == 1 )); then
