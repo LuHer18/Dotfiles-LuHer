@@ -46,7 +46,7 @@ with open(output_path, 'wb') as stream:
     stream.write(b''.join(chunks))
 PY
 mac_out=$(<"$pty_output")
-assert_contains "$mac_out" 'aerospace'
+assert_contains "$mac_out" 'AeroSpace'
 linux_menu_output=$(mktemp)
 cancel_home=$(mktemp -d)
 ROOT="$ROOT" HOME="$cancel_home" DOTFILES_OS_RELEASE="$linux_release" python3 - "$linux_menu_output" <<'PY'
@@ -133,6 +133,9 @@ assert_contains "$menu_text" 'macOS'
 assert_contains "$menu_text" 'arm64'
 assert_contains "$menu_text" 'Pi (opcional; +7 extensiones)'
 assert_contains "$menu_text" 'AeroSpace'
+assert_contains "$menu_text" 'Autosugerencias Zsh'
+assert_contains "$menu_text" 'Resaltado Zsh'
+assert_contains "$menu_text" 'Neovim'
 menu_case '0d' '' Linux xterm 80 "$menu_ui"
 menu_case '1b' '' Linux xterm 80 "$menu_ui"
 menu_case '03' '' Linux xterm 80 "$menu_ui"
@@ -217,4 +220,39 @@ pi_only_global=$(mktemp -d)
 pi_only_log=$(mktemp)
 PI_SELECTION=pi run_pi_case fresh "$pi_only_home" "$pi_only_bin" "$pi_only_global" "$pi_only_log"
 [[ $(cat "$pi_only_log") != *brew* ]] || fail 'Pi-only selection ran the application manager'
+
+# FIRST stage: shell-tool IDs are application-only. They must neither widen the
+# configuration selection nor call install.sh with an empty/all selection.
+stage_bin=$(mktemp -d)
+stage_log=$(mktemp)
+cat >"$stage_bin/brew" <<'EOF'
+#!/usr/bin/env bash
+printf 'brew:%s\n' "$*" >>"$STAGE_LOG"
+[[ "$1" == install ]] || exit 1
+formula=${@: -1}
+[[ "$formula" == neovim ]] && formula=nvim
+printf '#!/bin/sh\n' >"$(dirname "$0")/$formula"
+chmod +x "$(dirname "$0")/$formula"
+EOF
+chmod +x "$stage_bin/brew"
+stage_home=$(mktemp -d)
+STAGE_LOG="$stage_log" DOTFILES_OS=Darwin HOME="$stage_home" PATH="$stage_bin:/usr/bin:/bin" bash "$ROOT/dotfiles" setup --select eza --yes >/dev/null || fail 'app-only shell-tool selection failed'
+[[ $(<"$stage_log") == *'brew:install eza'* ]] || fail 'app-only selection did not install eza'
+[[ ! -e "$stage_home/.tmux.conf" && ! -e "$stage_home/.zshrc" && ! -e "$stage_home/.config" ]] || fail 'app-only selection changed configuration links'
+
+mixed_home=$(mktemp -d)
+mixed_bin=$(mktemp -d)
+cp "$stage_bin/brew" "$mixed_bin/brew"
+chmod +x "$mixed_bin/brew"
+: >"$stage_log"
+STAGE_LOG="$stage_log" DOTFILES_OS=Darwin HOME="$mixed_home" PATH="$mixed_bin:/usr/bin:/bin" bash "$ROOT/dotfiles" setup --select tmux,eza --yes >/dev/null || fail 'mixed shell-tool/config selection failed'
+mixed_log=$(<"$stage_log")
+[[ "$mixed_log" == *'brew:install tmux'* && "$mixed_log" == *'brew:install eza'* ]] || fail 'mixed selection missed an application'
+[[ -L "$mixed_home/.tmux.conf" && ! -e "$mixed_home/.zshrc" ]] || fail 'mixed selection linked the wrong configurations'
+
+configs_tool_home=$(mktemp -d)
+: >"$stage_log"
+if configs_tool_out=$(STAGE_LOG="$stage_log" DOTFILES_OS=Darwin HOME="$configs_tool_home" PATH="$stage_bin:/usr/bin:/bin" bash "$ROOT/dotfiles" setup --select eza --configs-only --yes 2>&1); then fail 'configs-only accepted a tool-only selection'; fi
+assert_contains "$configs_tool_out" 'no configuration'
+[[ ! -s "$stage_log" ]] || fail 'configs-only tool selection invoked a manager'
 printf 'cli tests passed\n'

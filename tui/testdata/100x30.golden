@@ -1,0 +1,27 @@
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ ╭─────╮  ████   ███  █████ █████ █████ █     █████  ████                                     │
+  │ │ >_  │  █   █ █   █   █   █       █   █     █     █                                         │
+  │ │     │  █   █ █   █   █   ████    █   █     ████   ███                                      │
+  │ │ $ _ │  █   █ █   █   █   █       █   █     █         █                                     │
+  │ ╰─────╯  ████   ███    █   █     █████ █████ █████ ████                                      │
+  │ Dotfiles · LuHer  ·  macOS / arm64                                                           │
+  │ ── componentes ───────────────────────────────────────────────────────────────────────────── │
+  │   [ ] Ghostty                 Terminal moderno y configurable                                │
+  │ › [✓] tmux                    Multiplexor de terminal                                        │
+  │   [ ] Herdr                   Multiplexor para sesiones con agentes de IA                    │
+  │   [ ] Starship                Prompt rápido y personalizable                                 │
+  │   [ ] Zsh                     Shell interactiva                                              │
+  │   [ ] OpenCode                Agente de programación de terminal                             │
+  │   [ ] Pi                      Pi (opcional; +7 extensiones)                                  │
+  │   [ ] Atuin                   Historial de shell sincronizable                               │
+  │   [ ] Zoxide                  Navegación rápida entre directorios                            │
+  │   [ ] eza                     Listado moderno de archivos                                    │
+  │   [ ] fnm                     Gestor rápido de versiones de Node.js                          │
+  │   [ ] Autosugerencias Zsh     Sugerencias mientras escribes en Zsh                           │
+  │   [ ] Resaltado Zsh           Colores de sintaxis para Zsh                                   │
+  │   [ ] Neovim                  Editor extensible (ejecutable: nvim)                           │
+  │   [ ] AeroSpace               Gestor de ventanas para macOS                                  │
+  │ ──────────────────────────────────────────────────────────────────────────────────────────── │
+  │ 1 seleccionados                                                                              │
+  │ ↑↓ mover · Espacio marcar · Enter confirmar · Esc cancelar                                   │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────╯

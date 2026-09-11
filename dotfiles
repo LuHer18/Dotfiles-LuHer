@@ -73,8 +73,27 @@ read_arch() {
 }
 
 interactive_selection() {
-  SELECT_LIST=$(PYTHONDONTWRITEBYTECODE=1 python3 -B "$ROOT/scripts/interactive_menu.py" --os "$OS_NAME" --arch "$(read_arch)")
+  local tui_bin=
+  if [[ -n ${DOTFILES_TUI_BIN+x} ]]; then
+    tui_bin=$DOTFILES_TUI_BIN
+    [[ -f "$tui_bin" && -x "$tui_bin" ]] || fail "DOTFILES_TUI_BIN must name an executable file: ${tui_bin:-<empty>}"
+  elif [[ -f "$ROOT/tui/bin/dotfiles-tui" && -x "$ROOT/tui/bin/dotfiles-tui" ]]; then
+    tui_bin=$ROOT/tui/bin/dotfiles-tui
+  fi
+
+  if [[ -n "$tui_bin" ]]; then
+    SELECT_LIST=$("$tui_bin" --os "$OS_NAME" --arch "$(read_arch)")
+  else
+    SELECT_LIST=$(PYTHONDONTWRITEBYTECODE=1 python3 -B "$ROOT/scripts/interactive_menu.py" --os "$OS_NAME" --arch "$(read_arch)")
+  fi
   [[ -n "$SELECT_LIST" ]] || { printf 'Cancelled; no changes made.\n'; exit 0; }
+}
+
+is_config_id() {
+  case "$1" in ghostty|tmux|herdr|starship|zsh|opencode|aerospace) return 0 ;; *) return 1 ;; esac
+}
+is_shell_tool_id() {
+  case "$1" in atuin|zoxide|eza|fnm|zsh-autosuggestions|zsh-syntax-highlighting|neovim) return 0 ;; *) return 1 ;; esac
 }
 
 validate_selection() {
@@ -82,7 +101,7 @@ validate_selection() {
   [[ "$SELECT_LIST" != ,* && "$SELECT_LIST" != *, && "$SELECT_LIST" != *,,* ]] || fail 'Invalid empty selection'
   IFS=, read -r -a SELECTION_IDS <<<"$SELECT_LIST"
   for id in "${SELECTION_IDS[@]}"; do
-    case "$id" in ghostty|tmux|herdr|starship|zsh|opencode|pi|aerospace) ;; *) fail "Unknown selection: $id" ;; esac
+    is_config_id "$id" || is_shell_tool_id "$id" || [[ "$id" == pi ]] || fail "Unknown selection: $id"
     [[ "$OS_NAME" == Darwin || "$id" != aerospace ]] || fail 'Aerospace is macOS-only'
     case ",$seen," in *,"$id",*) fail 'Duplicate selection' ;; esac
     seen+="${seen:+,}$id"
@@ -90,18 +109,24 @@ validate_selection() {
 }
 
 plan_selection() {
-  local id
+  local id tool_selected=0
   APP_SELECT=
   CONFIG_SELECT=
   PI_SELECTED=0
   for id in "${SELECTION_IDS[@]}"; do
     if [[ "$id" == pi ]]; then
       PI_SELECTED=1
-      continue
+    elif is_config_id "$id"; then
+      CONFIG_SELECT+="${CONFIG_SELECT:+,}$id"
+      (( CONFIGS_ONLY == 1 )) || APP_SELECT+="${APP_SELECT:+,}$id"
+    else
+      tool_selected=1
+      (( CONFIGS_ONLY == 1 )) || APP_SELECT+="${APP_SELECT:+,}$id"
     fi
-    CONFIG_SELECT+="${CONFIG_SELECT:+,}$id"
-    (( CONFIGS_ONLY == 1 )) || APP_SELECT+="${APP_SELECT:+,}$id"
   done
+  if ((CONFIGS_ONLY == 1 && tool_selected == 1 && PI_SELECTED == 0)) && [[ -z "$CONFIG_SELECT" ]]; then
+    fail '--configs-only selection contains no configuration targets; remove tool-only IDs or omit --configs-only'
+  fi
   (( PI_MERGE == 0 || PI_SELECTED == 1 )) || fail '--pi-merge requires pi in --select'
 }
 
@@ -149,7 +174,7 @@ bin=$(pnpm config get global-bin-dir 2>/dev/null || true)
 confirm() {
   (( DRY_RUN == 1 || YES == 1 )) && return 0
   [[ -t 0 ]] || fail 'Explicit --yes is required in noninteractive mode'
-  printf 'Apply these links? [y/N] '
+  printf 'Apply this plan? [y/N] '
   local answer
   IFS= read -r answer || answer=
   case "$answer" in

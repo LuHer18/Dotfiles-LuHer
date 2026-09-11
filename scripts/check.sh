@@ -76,9 +76,24 @@ if [[ "${DOTFILES_SKIP_SETUP_PI_TEST:-0}" != 1 ]] && [[ -x "${REPO_DIR}/tests/te
   run_check "Pi setup tests" bash "${REPO_DIR}/tests/test_setup_pi.sh"
 fi
 
+if [[ -f "${REPO_DIR}/tests/test_interactive_menu.py" ]]; then
+  run_check "interactive menu tests" python3 -B "${REPO_DIR}/tests/test_interactive_menu.py"
+fi
+
 if [[ -x "${REPO_DIR}/tests/test_cli.sh" ]]; then
   run_check "CLI tests" bash "${REPO_DIR}/tests/test_cli.sh"
 fi
+
+# Go checks are explicit so a normal repository check never downloads or builds the TUI.
+if [[ "${DOTFILES_CHECK_TUI:-0}" == 1 ]]; then
+  run_check "Bubble Tea unit tests (offline cache only)" bash -c 'cd "$1/tui" && GOPROXY=off GOTOOLCHAIN=local GOWORK=off go test ./...' bash "${REPO_DIR}"
+  if [[ -x "${REPO_DIR}/tui/bin/dotfiles-tui" ]]; then
+    run_check "Bubble Tea PTY tests" bash "${REPO_DIR}/tests/test_tui.sh" "${REPO_DIR}/tui/bin/dotfiles-tui"
+  else
+    log "SKIP Bubble Tea PTY tests (build tui/bin/dotfiles-tui explicitly first)"
+  fi
+fi
+
 if [[ -x "${REPO_DIR}/tests/test_install_apps.sh" ]]; then
   run_check "application tests" bash "${REPO_DIR}/tests/test_install_apps.sh"
 fi

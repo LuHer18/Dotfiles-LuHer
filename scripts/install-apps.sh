@@ -23,6 +23,41 @@ fail_app() {
   return 1
 }
 usage() { printf '%s\n' 'Usage: scripts/install-apps.sh --yes [--allow-remote-installers] [--dry-run]'; }
+
+is_shell_tool() {
+  case "$1" in
+  atuin | zoxide | eza | fnm | zsh-autosuggestions | zsh-syntax-highlighting | neovim) return 0 ;;
+  *) return 1 ;;
+  esac
+}
+plugin_script_name() {
+  case "$1" in
+  zsh-autosuggestions) printf '%s\n' 'zsh-autosuggestions/zsh-autosuggestions.zsh' ;;
+  zsh-syntax-highlighting) printf '%s\n' 'zsh-syntax-highlighting/zsh-syntax-highlighting.zsh' ;;
+  *) return 1 ;;
+  esac
+}
+installed_plugin() {
+  local app=$1 relative candidate prefix
+  relative=$(plugin_script_name "$app") || return 1
+  if [[ -n ${DOTFILES_TEST_PLUGIN_ROOT+x} ]]; then
+    candidate="$DOTFILES_TEST_PLUGIN_ROOT/$relative"
+    [[ -r "$candidate" ]] && return 0
+  elif [[ "$APP_OS" == Darwin ]]; then
+    candidate="/opt/homebrew/share/$relative"
+    [[ -r "$candidate" ]] && return 0
+  else
+    for candidate in "/usr/share/$relative" "/usr/share/zsh/plugins/$relative"; do
+      [[ -r "$candidate" ]] && return 0
+    done
+  fi
+  # Homebrew's prefix is queried only after confirmation, never in dry-run.
+  if [[ "$APP_OS" == Darwin && "$APP_DRY_RUN" == 0 ]] && command -v brew >/dev/null 2>&1; then
+    prefix=$(brew --prefix "$app" 2>/dev/null || true)
+    [[ -n "$prefix" && -r "$prefix/share/$relative" ]] && return 0
+  fi
+  return 1
+}
 while (($#)); do
   case "$1" in
   --yes) APP_YES=1 ;; --allow-remote-installers) APP_ALLOW_REMOTE=1 ;; --dry-run) APP_DRY_RUN=1 ;; -h | --help)
@@ -68,21 +103,28 @@ version_ge() {
   rminor=${rminor:-0}
   ((lmajor > rmajor || (lmajor == rmajor && lminor >= rminor)))
 }
-local_bin="$HOME/.local/bin"
+cargo_root="$HOME/.local"
+local_bin="$cargo_root/bin"
 installed_app() {
   case "$1" in
   ghostty) [[ "$APP_OS" == Darwin && -d /Applications/Ghostty.app ]] || command -v ghostty >/dev/null 2>&1 ;;
   aerospace) [[ "$APP_OS" == Darwin && -d /Applications/AeroSpace.app ]] || command -v aerospace >/dev/null 2>&1 ;;
-  herdr | starship) [[ -x "$local_bin/$1" ]] || command -v "$1" >/dev/null 2>&1 ;;
+  herdr | starship | atuin | zoxide | eza | fnm) [[ -x "$local_bin/$1" ]] || command -v "$1" >/dev/null 2>&1 ;;
+  neovim) command -v nvim >/dev/null 2>&1 ;;
+  zsh-autosuggestions | zsh-syntax-highlighting) installed_plugin "$1" ;;
   *) command -v "$1" >/dev/null 2>&1 ;;
   esac
 }
-valid_app() { case "$1" in ghostty | tmux | herdr | starship | zsh | opencode | aerospace) ;; *) fail_app "Unknown application: $1" ;; esac }
+valid_app() { case "$1" in ghostty | tmux | herdr | starship | zsh | opencode | aerospace | atuin | zoxide | eza | fnm | zsh-autosuggestions | zsh-syntax-highlighting | neovim) ;; *) fail_app "Unknown application: $1" ;; esac }
 remote_needed() { [[ "$APP_OS:$1" == Linux:herdr || "$APP_OS:$1" == Linux:starship ]]; }
 validate_local_target() {
   local component path=$HOME
   [[ -d "$HOME" && ! -L "$HOME" ]] || {
     fail_app "Unsafe HOME path: $HOME"
+    return 1
+  }
+  [[ -w "$HOME" ]] || {
+    fail_app "Target directory is not writable: $HOME"
     return 1
   }
   for component in .local bin; do
@@ -119,6 +161,98 @@ preflight_remote() {
   fi
   validate_local_target || return 1
 }
+APP_METHODS=
+set_app_method() {
+  APP_METHODS="${APP_METHODS:+$APP_METHODS }$1:$2"
+}
+app_method() {
+  local app=$1 pair
+  for pair in $APP_METHODS; do
+    [[ "${pair%%:*}" == "$app" ]] && {
+      printf '%s\n' "${pair#*:}"
+      return 0
+    }
+  done
+  return 1
+}
+linux_apt_formula() {
+  case "$1" in
+  zoxide | zsh-autosuggestions | zsh-syntax-highlighting | neovim) printf '%s\n' "$1" ;;
+  *) return 1 ;;
+  esac
+}
+preflight_cargo() {
+  local app=$1 version major minor
+  validate_local_target || return 1
+  command -v cargo >/dev/null 2>&1 || {
+    fail_app "$app requires an existing Cargo/Rust toolchain; rustup is not installed automatically"
+    return 1
+  }
+  if [[ "$app" == atuin ]]; then
+    command -v rustc >/dev/null 2>&1 || {
+      fail_app 'atuin requires Rust >= 1.98.0; rustc is unavailable'
+      return 1
+    }
+    version=$(rustc --version 2>/dev/null || true)
+    [[ "$version" =~ rustc[[:space:]]+([0-9]+)\.([0-9]+)\. ]] || {
+      fail_app 'atuin requires Rust >= 1.98.0; unable to determine rustc version'
+      return 1
+    }
+    major=${BASH_REMATCH[1]}
+    minor=${BASH_REMATCH[2]}
+    ((major > 1 || (major == 1 && minor >= 98))) || {
+      fail_app "atuin requires Rust >= 1.98.0; found $version"
+      return 1
+    }
+  fi
+}
+preflight_shell_tool() {
+  local app=$1 formula candidate
+  if ((APP_DRY_RUN == 1)); then
+    case "$APP_OS:$app" in
+    Darwin:*) log_app "DRY RUN: would run brew install $app" ;;
+    Linux:zoxide | Linux:zsh-autosuggestions | Linux:zsh-syntax-highlighting | Linux:neovim)
+      if [[ "$app" == zoxide ]]; then
+        log_app "DRY RUN: would query apt-cache policy zoxide after confirmation; install with apt-get if Candidate is available, otherwise cargo install zoxide --locked"
+      else
+        log_app "DRY RUN: would query apt-cache policy $app after confirmation; install with apt-get only if Candidate is available"
+      fi
+      ;;
+    Linux:*) log_app "DRY RUN: would run cargo install $app --locked (requires an existing Cargo/Rust toolchain; Cargo builds third-party code)" ;;
+    esac
+    return 0
+  fi
+  if [[ "$APP_OS" == Darwin ]]; then
+    command -v brew >/dev/null 2>&1 || {
+      fail_app "$app requires existing Homebrew"
+      return 1
+    }
+    set_app_method "$app" brew
+    return 0
+  fi
+  if formula=$(linux_apt_formula "$app"); then
+    command -v apt-get >/dev/null 2>&1 || {
+      fail_app "$app requires apt-get"
+      return 1
+    }
+    command -v apt-cache >/dev/null 2>&1 || {
+      fail_app "$app requires apt-cache to verify an available native package"
+      return 1
+    }
+    candidate=$(apt-cache policy "$formula" | awk '$1 == "Candidate:" { print $2; exit }')
+    if [[ -n "$candidate" && "$candidate" != '(none)' ]]; then
+      set_app_method "$app" apt
+      return 0
+    fi
+    [[ "$app" == zoxide ]] || {
+      fail_app "$app has no supported apt Candidate; no repository is added automatically"
+      return 1
+    }
+    log_app 'zoxide has no apt Candidate; using the official Cargo fallback'
+  fi
+  preflight_cargo "$app" || return 1
+  set_app_method "$app" cargo
+}
 preflight_app() {
   local app=$1
   valid_app "$app" || return 1
@@ -126,6 +260,14 @@ preflight_app() {
     fail_app "Unsupported architecture: $APP_ARCH"
     return 1
   }
+  if is_shell_tool "$app"; then
+    if ((APP_DRY_RUN == 0)) && installed_app "$app"; then
+      log_app "$app already installed; skipping"
+      return 0
+    fi
+    preflight_shell_tool "$app"
+    return $?
+  fi
   if remote_needed "$app"; then validate_local_target || return 1; fi
   if installed_app "$app"; then
     log_app "$app already installed; skipping"
@@ -224,10 +366,23 @@ remote_install() {
   }
 }
 run_install() {
-  local app=$1
+  local app=$1 method
   if ((APP_DRY_RUN == 1)); then
-    log_app "DRY RUN: install $app"
+    is_shell_tool "$app" || log_app "DRY RUN: install $app"
     return 0
+  fi
+  if is_shell_tool "$app"; then
+    method=$(app_method "$app" || true)
+    case "$method" in
+    brew) brew install "$app" ;;
+    apt) sudo apt-get install -y "$app" ;;
+    cargo) cargo install --locked --root "$cargo_root" "$app" ;;
+    *)
+      fail_app "No preflighted installation method for $app"
+      return 1
+      ;;
+    esac
+    return $?
   fi
   case "$APP_OS:$app" in Darwin:ghostty) brew install --cask ghostty ;; Darwin:herdr) brew install herdr ;; Darwin:opencode) brew install anomalyco/tap/opencode ;; Darwin:starship) brew install starship ;; Darwin:tmux | Darwin:zsh) brew install "$app" ;; Darwin:aerospace) brew install --cask nikitabobko/tap/aerospace ;; Linux:herdr | Linux:starship) remote_install "$app" ;; Linux:ghostty) sudo apt-get install -y ghostty ;; Linux:tmux | Linux:zsh) sudo apt-get install -y "$app" ;; Linux:opencode) pnpm install -g opencode-ai ;; *)
     fail_app "No supported installation method for $app on $APP_OS"
@@ -240,7 +395,9 @@ main() {
   local app
   for app in $APP_SELECT; do preflight_app "$app" || return 1; done
   if ((APP_DRY_RUN == 1)); then
-    for app in $APP_SELECT; do installed_app "$app" || run_install "$app" || return 1; done
+    for app in $APP_SELECT; do
+      if is_shell_tool "$app"; then run_install "$app" || return 1; else installed_app "$app" || run_install "$app" || return 1; fi
+    done
     return 0
   fi
   if ((APP_ALLOW_REMOTE == 0)) && ! [[ -t 0 ]]; then
@@ -263,10 +420,18 @@ main() {
     true
   done
   APP_APPROVAL_ONLY=0
-  for app in $APP_SELECT; do installed_app "$app" || { run_install "$app" || {
-    fail_app "Failed to install $app; links were not changed"
-    return 1
-  }; }; done
+  for app in $APP_SELECT; do
+    installed_app "$app" || {
+      run_install "$app" || {
+        fail_app "Failed to install $app; links were not changed"
+        return 1
+      }
+      if is_shell_tool "$app" && ! installed_app "$app"; then
+        fail_app "$app installation did not create its expected executable or plugin file; links were not changed"
+        return 1
+      fi
+    }
+  done
   true
   return 0
 }

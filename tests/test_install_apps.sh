@@ -156,4 +156,136 @@ pty_result=$(<"$pty_log")
 missing_home=$(mktemp -d)
 missing_log=$(mktemp)
 if REMOTE_LOG="$missing_log" DOTFILES_TEST_OS=Linux DOTFILES_OS_RELEASE="$release" HOME="$missing_home" PATH="/bin" DOTFILES_APP_SELECT=herdr bash "$ROOT/scripts/install-apps.sh" --yes --allow-remote-installers >/dev/null 2>&1; then fail 'missing curl accepted'; fi
-printf 'install-apps tests passed (remote assertions: 17)\n'
+# FIRST-stage shell-tool regression coverage. All executables, managers, and plugin
+# files are fixtures; the test never calls a real package manager or installer.
+tool_home=$(mktemp -d)
+tool_bin=$(mktemp -d)
+tool_log=$(mktemp)
+tool_prefix=$(mktemp -d)
+cat >"$tool_bin/brew" <<'EOF'
+#!/usr/bin/env bash
+printf 'brew:%s\n' "$*" >>"$TOOL_LOG"
+if [[ "$1" == --prefix ]]; then
+  printf '%s/%s\n' "$TOOL_PREFIX" "$2"
+  exit 0
+fi
+[[ "$1" == install ]] || exit 1
+formula=${@: -1}
+case "$formula" in
+  zsh-autosuggestions|zsh-syntax-highlighting)
+    mkdir -p "$TOOL_PREFIX/$formula/share/$formula" "$TOOL_TEST_PLUGIN_ROOT/$formula"
+    printf '# fixture\n' >"$TOOL_PREFIX/$formula/share/$formula/$formula.zsh"
+    printf '# fixture\n' >"$TOOL_TEST_PLUGIN_ROOT/$formula/$formula.zsh"
+    ;;
+  neovim) printf '#!/bin/sh\n' >"$(dirname "$0")/nvim"; chmod +x "$(dirname "$0")/nvim" ;;
+  *) printf '#!/bin/sh\n' >"$(dirname "$0")/$formula"; chmod +x "$(dirname "$0")/$formula" ;;
+esac
+EOF
+chmod +x "$tool_bin/brew"
+# Seven macOS formulas are explicit. Neovim's selected ID is neovim but its
+# verified executable is nvim; plugins are detected as readable source files.
+TOOL_LOG="$tool_log" TOOL_PREFIX="$tool_prefix" TOOL_TEST_PLUGIN_ROOT="$tool_prefix/test-source" DOTFILES_TEST_PLUGIN_ROOT="$tool_prefix/test-source" HOME="$tool_home" DOTFILES_TEST_OS=Darwin DOTFILES_APP_SELECT='atuin zoxide eza fnm zsh-autosuggestions zsh-syntax-highlighting neovim' PATH="$tool_bin:/usr/bin:/bin" bash "$ROOT/scripts/install-apps.sh" --yes >/dev/null || fail 'macOS shell-tool routes failed'
+tool_result=$(<"$tool_log")
+for formula in atuin zoxide eza fnm zsh-autosuggestions zsh-syntax-highlighting neovim; do
+  [[ "$tool_result" == *"brew:install $formula"* ]] || fail "missing macOS formula: $formula"
+done
+[[ -x "$tool_bin/nvim" && -r "$tool_prefix/test-source/zsh-autosuggestions/zsh-autosuggestions.zsh" && -r "$tool_prefix/test-source/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] || fail 'macOS shell-tool postconditions failed'
+
+linux_tools=$(mktemp -d)
+linux_log=$(mktemp)
+linux_commands=$(mktemp -d)
+cat >"$linux_tools/apt-cache" <<'EOF'
+#!/usr/bin/env bash
+printf 'apt-cache:%s\n' "$*" >>"$TOOL_LOG"
+if [[ "${APT_NO_ZOXIDE_CANDIDATE:-0}" == 1 && "$2" == zoxide ]]; then
+  printf '  Candidate: (none)\n'
+else
+  printf '  Candidate: 1.0\n'
+fi
+EOF
+cat >"$linux_tools/apt-get" <<'EOF'
+#!/usr/bin/env bash
+printf 'apt-get:%s\n' "$*" >>"$TOOL_LOG"
+package=${@: -1}
+[[ "$package" == neovim ]] && package=nvim
+printf '#!/bin/sh\n' >"$TOOL_COMMANDS/$package"; chmod +x "$TOOL_COMMANDS/$package"
+EOF
+cat >"$linux_tools/cargo" <<'EOF'
+#!/usr/bin/env bash
+printf 'cargo:%s\n' "$*" >>"$TOOL_LOG"
+root=${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}
+for ((i=1; i <= $#; i++)); do
+  if [[ "${!i}" == --root ]]; then j=$((i + 1)); root=${!j}; fi
+done
+package=${@: -1}
+mkdir -p "$root/bin"
+printf '#!/bin/sh\n' >"$root/bin/$package"; chmod +x "$root/bin/$package"
+EOF
+cat >"$linux_tools/rustc" <<'EOF'
+#!/usr/bin/env bash
+printf 'rustc 1.98.0\n'
+EOF
+cat >"$linux_tools/sudo" <<'EOF'
+#!/usr/bin/env bash
+exec "$@"
+EOF
+chmod +x "$linux_tools/apt-cache" "$linux_tools/apt-get" "$linux_tools/cargo" "$linux_tools/rustc" "$linux_tools/sudo"
+# RED: Cargo's default destination is not necessarily on PATH. A successful
+# install must verify its selected destination rather than command -v alone.
+cargo_path_red_home=$(mktemp -d)
+TOOL_LOG="$linux_log" HOME="$cargo_path_red_home" DOTFILES_TEST_OS=Linux DOTFILES_OS_RELEASE="$release" DOTFILES_APP_SELECT=eza PATH="$linux_tools:/usr/bin:/bin" bash "$ROOT/scripts/install-apps.sh" --yes >/dev/null || fail 'Cargo destination postcondition failed'
+[[ -x "$cargo_path_red_home/.local/bin/eza" ]] || fail 'Cargo did not use the managed local destination'
+# An existing custom Cargo root remains untouched because this installer owns
+# only the explicitly selected ~/.local destination.
+cargo_custom_home=$(mktemp -d)
+cargo_custom_root=$(mktemp -d)
+: >"$linux_log"
+TOOL_LOG="$linux_log" CARGO_HOME="$cargo_custom_root" HOME="$cargo_custom_home" DOTFILES_TEST_OS=Linux DOTFILES_OS_RELEASE="$release" DOTFILES_APP_SELECT=fnm PATH="$linux_tools:/usr/bin:/bin" bash "$ROOT/scripts/install-apps.sh" --yes >/dev/null || fail 'Cargo custom-root installation failed'
+[[ -x "$cargo_custom_home/.local/bin/fnm" && ! -e "$cargo_custom_root/bin/fnm" ]] || fail 'Cargo custom root was modified'
+[[ $(<"$linux_log") == *"cargo:install --locked --root $cargo_custom_home/.local fnm"* ]] || fail 'Cargo local-root arguments missing'
+# A managed local artifact is recognized even when PATH does not contain it.
+cargo_skip_home=$(mktemp -d)
+mkdir -p "$cargo_skip_home/.local/bin"
+printf '#!/bin/sh\n' >"$cargo_skip_home/.local/bin/eza"
+chmod +x "$cargo_skip_home/.local/bin/eza"
+: >"$linux_log"
+TOOL_LOG="$linux_log" HOME="$cargo_skip_home" DOTFILES_TEST_OS=Linux DOTFILES_OS_RELEASE="$release" DOTFILES_APP_SELECT=eza PATH="$linux_tools:/usr/bin:/bin" bash "$ROOT/scripts/install-apps.sh" --yes >/dev/null || fail 'managed Cargo artifact was not recognized'
+[[ $(<"$linux_log") != *cargo:* ]] || fail 'managed Cargo artifact was reinstalled'
+# Cargo local-root safety is checked before Cargo is allowed to mutate.
+cargo_unsafe_home=$(mktemp -d)
+cargo_unsafe_victim=$(mktemp -d)
+ln -s "$cargo_unsafe_victim" "$cargo_unsafe_home/.local"
+: >"$linux_log"
+if TOOL_LOG="$linux_log" HOME="$cargo_unsafe_home" DOTFILES_TEST_OS=Linux DOTFILES_OS_RELEASE="$release" DOTFILES_APP_SELECT=eza PATH="$linux_tools:/usr/bin:/bin" bash "$ROOT/scripts/install-apps.sh" --yes >/dev/null 2>&1; then fail 'unsafe Cargo local root accepted'; fi
+[[ ! -s "$linux_log" && ! -e "$cargo_unsafe_victim/bin/eza" ]] || fail 'unsafe Cargo local root invoked Cargo'
+# Linux queries native packages before mutation and uses existing Cargo only for
+# the official Cargo routes; no rustup/bootstrap path is available.
+linux_home=$(mktemp -d)
+TOOL_LOG="$linux_log" TOOL_COMMANDS="$linux_commands" HOME="$linux_home" DOTFILES_TEST_OS=Linux DOTFILES_OS_RELEASE="$release" DOTFILES_APP_SELECT='neovim atuin eza fnm zoxide' PATH="$linux_tools:$linux_commands:/usr/bin:/bin" bash "$ROOT/scripts/install-apps.sh" --yes >/dev/null || fail 'Linux native/cargo routes failed'
+linux_result=$(<"$linux_log")
+[[ "$linux_result" == *'apt-cache:policy neovim'* && "$linux_result" == *'apt-get:install -y neovim'* && "$linux_result" == *'apt-cache:policy zoxide'* && "$linux_result" == *'apt-get:install -y zoxide'* ]] || fail 'Linux native candidate route missing'
+for formula in atuin eza fnm; do
+  [[ "$linux_result" == *"cargo:install --locked --root $linux_home/.local $formula"* ]] || fail "Linux Cargo fallback missing: $formula"
+done
+# zoxide alone has an official Cargo fallback when no native Candidate exists.
+: >"$linux_log"
+fallback_commands=$(mktemp -d)
+fallback_home=$(mktemp -d)
+APT_NO_ZOXIDE_CANDIDATE=1 TOOL_LOG="$linux_log" TOOL_COMMANDS="$fallback_commands" HOME="$fallback_home" DOTFILES_TEST_OS=Linux DOTFILES_OS_RELEASE="$release" DOTFILES_APP_SELECT=zoxide PATH="$linux_tools:$fallback_commands:/usr/bin:/bin" bash "$ROOT/scripts/install-apps.sh" --yes >/dev/null || fail 'zoxide Cargo fallback failed'
+[[ $(<"$linux_log") == *"cargo:install --locked --root $fallback_home/.local zoxide"* ]] || fail 'zoxide Cargo fallback missing'
+
+# Dry-run is a plan only: no manager, Cargo, apt-cache, or plugin-prefix query.
+: >"$linux_log"
+TOOL_LOG="$linux_log" TOOL_COMMANDS="$linux_commands" HOME="$(mktemp -d)" DOTFILES_TEST_OS=Linux DOTFILES_OS_RELEASE="$release" DOTFILES_APP_SELECT='neovim atuin' DOTFILES_DRY_RUN=1 PATH="$linux_tools:$linux_commands:/usr/bin:/bin" bash "$ROOT/scripts/install-apps.sh" --yes >/dev/null || fail 'shell-tool dry run failed'
+[[ ! -s "$linux_log" ]] || fail 'shell-tool dry run invoked a tool'
+
+# A later missing prerequisite aborts preflight before the earlier native route
+# can mutate through apt-get.
+missing_cargo_tools=$(mktemp -d)
+cp "$linux_tools/apt-cache" "$missing_cargo_tools/apt-cache"
+cp "$linux_tools/apt-get" "$missing_cargo_tools/apt-get"
+: >"$linux_log"
+if TOOL_LOG="$linux_log" TOOL_COMMANDS="$linux_commands" HOME="$(mktemp -d)" DOTFILES_TEST_OS=Linux DOTFILES_OS_RELEASE="$release" DOTFILES_APP_SELECT='neovim atuin' PATH="$missing_cargo_tools:/usr/bin:/bin" bash "$ROOT/scripts/install-apps.sh" --yes >/dev/null 2>&1; then fail 'missing Cargo prerequisite accepted'; fi
+[[ $(<"$linux_log") != *apt-get:* ]] || fail 'preflight failure installed an earlier native package'
+
+printf 'install-apps tests passed (remote assertions: 17; shell-tool assertions: 19)\n'

@@ -1,0 +1,20 @@
+                           ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
+                           │ ╭─────╮  Dotfiles · LuHer                                                                    │
+                           │ │ >_  │  macOS / arm64                                                                       │
+                           │ ╰─────╯  selector de componentes                                                             │
+                           │ ── componentes ───────────────────────────────────────────────────────────────────────────── │
+                           │   [ ] Ghostty                 Terminal moderno y configurable                                │
+                           │ › [✓] tmux                    Multiplexor de terminal                                        │
+                           │   [ ] Herdr                   Multiplexor para sesiones con agentes de IA                    │
+                           │   [ ] Starship                Prompt rápido y personalizable                                 │
+                           │   [ ] Zsh                     Shell interactiva                                              │
+                           │   [ ] OpenCode                Agente de programación de terminal                             │
+                           │   [ ] Pi                      Pi (opcional; +7 extensiones)                                  │
+                           │   [ ] Atuin                   Historial de shell sincronizable                               │
+                           │   [ ] Zoxide                  Navegación rápida entre directorios                            │
+                           │   [ ] eza                     Listado moderno de archivos                                    │
+                           │   [ ] fnm                     Gestor rápido de versiones de Node.js                          │
+                           │ ──────────────────────────────────────────────────────────────────────────────────────────── │
+                           │ 1 seleccionados · mostrando 1–11 de 15                                                       │
+                           │ ↑↓ mover · Espacio marcar · Enter confirmar · Esc cancelar                                   │
+                           ╰──────────────────────────────────────────────────────────────────────────────────────────────╯

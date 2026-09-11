@@ -1,0 +1,18 @@
+ ╭────────────────────────────────────────────────────╮
+ │ ╭─────╮  Dotfiles · LuHer                          │
+ │ │ >_  │  macOS / arm64                             │
+ │ ╰─────╯  selector de componentes                   │
+ │ ── componentes ─────────────────────────────────── │
+ │   [ ] Ghostty                 Terminal moderno y … │
+ │ › [✓] tmux                    Multiplexor de term… │
+ │   [ ] Herdr                   Multiplexor para se… │
+ │   [ ] Starship                Prompt rápido y per… │
+ │   [ ] Zsh                     Shell interactiva    │
+ │   [ ] OpenCode                Agente de programac… │
+ │   [ ] Pi                      Pi (opcional; +7 ex… │
+ │   [ ] Atuin                   Historial de shell … │
+ │   [ ] Zoxide                  Navegación rápida e… │
+ │ ────────────────────────────────────────────────── │
+ │ 1 seleccionados · mostrando 1–9 de 15              │
+ │ ↑↓ mover · Espacio marcar · Enter confirmar · Esc… │
+ ╰────────────────────────────────────────────────────╯

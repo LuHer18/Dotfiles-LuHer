@@ -12,3 +12,8 @@ config/pi/*
 !config/pi/themes/
 config/pi/themes/*
 !config/pi/themes/catppuccin-mocha.json
+# Local Pi runtime state
+.atl/
+
+# Explicit local Bubble Tea preview build
+/tui/bin/
