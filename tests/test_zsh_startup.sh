@@ -7,6 +7,18 @@ fixture=$(mktemp -d)
 trap 'rm -rf "$fixture"' EXIT
 failures=0
 
+# Run the real completion audit without inheriting the runner's site completions.
+# Keep the standard helpers used by optional plugins installed by the host.
+completions="$fixture/completions"
+mkdir -m 700 "$completions"
+"$ZSH" -f -c '
+  for name in compinit compaudit compdump compinstall add-zsh-hook is-at-least; do
+    files=(${^fpath}/$name(N.))
+    (( $#files )) || { print -ru2 -- "Missing Zsh completion function: $name"; exit 1; }
+    cp "$files[1]" "$1/$name" || exit 1
+  done
+' zsh "$completions"
+
 stub() {
   local dir=$1 name=$2 args=$3
   mkdir -p "$dir"
@@ -22,7 +34,8 @@ run_case() {
     ln -s "$(command -v "$utility")" "$home/path/$utility"
   done
   env -i HOME="$home" ZDOTDIR="$home" PATH="$home/path" LC_ALL=C \
-    "$ZSH" -f -c 'source "$1"' zsh "$ROOT/zsh/.zshrc" \
+    "$ZSH" -f -c 'fpath=("$2"); _compdir=""; source "$1" && [[ -s "$ZDOTDIR/.zcompdump" ]]' \
+    zsh "$ROOT/zsh/.zshrc" "$completions" \
     >"$fixture/stdout" 2>"$fixture/stderr" || status=$?
   printf '%s' "$expected" >"$fixture/expected"
   if [[ "$status" != 0 || -s "$fixture/stderr" ]] || ! cmp -s "$fixture/expected" "$fixture/stdout"; then
