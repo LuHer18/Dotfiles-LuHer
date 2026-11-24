@@ -1,0 +1,32 @@
+name: Zsh startup
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  zsh-startup:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Zsh on Linux if missing
+        if: runner.os == 'Linux'
+        run: |
+          if ! command -v zsh >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y zsh
+          fi
+      - name: Check Zsh syntax and startup
+        run: |
+          zsh -n zsh/.zshrc
+          bash tests/test_zsh_startup.sh

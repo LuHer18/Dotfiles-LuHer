@@ -17,10 +17,6 @@ compinit
 
 bindkey -e
 
-if command -v fnm >/dev/null 2>&1; then
-  eval "$(fnm env --use-on-cd --shell zsh)"
-fi
-
 if command -v zoxide >/dev/null 2>&1; then
   eval "$(zoxide init zsh)"
 fi
@@ -59,10 +55,18 @@ for plugin in \
   [[ -r "$plugin" ]] && { source "$plugin"; break; }
 done
 
+export PATH="$HOME/.local/bin:$PATH"
+if [[ -d "$HOME/.local/share/fnm" ]]; then
+  export PATH="$HOME/.local/share/fnm:$PATH"
+fi
+
+if command -v fnm >/dev/null 2>&1; then
+  eval "$(fnm env --use-on-cd --shell zsh)"
+fi
+
 if command -v starship >/dev/null 2>&1; then
   eval "$(starship init zsh)"
 fi
-export PATH="$HOME/.local/bin:$PATH"
 
     # pnpm
     if [[ -n "${PNPM_HOME:-}" ]]; then
